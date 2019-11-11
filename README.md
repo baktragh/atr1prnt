@@ -3,10 +3,10 @@ ATR Disk Image Dumping Tool
 
 ATR1PRNT is a utility that allows you to dump ATR files.
 
-#Usage
+# Usage
     java -jar atr1prnt.jar <atr_file> [options]
 
-#Example
+# Example
     java -jar atr1prnt.jar TEST.ATR FS-DOS2 NOBOOT DOS2-BITMAP
 
 
