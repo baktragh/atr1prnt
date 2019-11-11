@@ -10,7 +10,9 @@ public class SectorChecker implements AtrChecker {
     
     @Override
     public void check(AtrFile atrFile, PrintStream pr, Properties props) {
-    
+        
+        if (props.containsKey("NOSECTORS")) return;
+        
         this.pr=pr;
         
         int numSects = atrFile.getSectors().size();

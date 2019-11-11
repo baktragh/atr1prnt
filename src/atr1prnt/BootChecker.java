@@ -8,7 +8,9 @@ class BootChecker implements AtrChecker {
 
     @Override
     public void check(AtrFile atrFile, PrintStream pr, Properties props) {
-     
+        
+        if (props.containsKey("NOBOOT")) return;
+        
         int[] data = atrFile.getSectorData(1);
         
         int bFlags = data[0];

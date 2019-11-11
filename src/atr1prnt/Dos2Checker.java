@@ -9,6 +9,9 @@ public class Dos2Checker implements AtrChecker {
     @Override
     public void check(AtrFile atrFile, PrintStream pr, Properties props) {
         checkDirectory(atrFile,pr);
+        if (props.containsKey("DOS2-BITMAP")) {
+            checkBitmap(atrFile,pr);
+        }
     }
 
     @Override
@@ -19,19 +22,10 @@ public class Dos2Checker implements AtrChecker {
     
     private void checkDirectory(AtrFile atrFile, PrintStream pr) {
         
-        pr.println("Directory listing 1");
+        pr.println("Directory listing");
         
         for (int k=361;k<=368;k++) {
             listDirSector(atrFile.getSectorData(k),pr);
-        }
-        
-        pr.println("Bitmap 1 listing");
-        listBitmapSector(atrFile.getSectorData(360),pr,0,720);
-        
-        if (atrFile.getSectors().size()>720) {
-          pr.println();
-          pr.println("Bitmap 2 listing");
-          listBitmapSector(atrFile.getSectorData(1024),pr,48,976);
         }
         
     }
@@ -85,6 +79,18 @@ public class Dos2Checker implements AtrChecker {
             /*Now print it*/
             pr.println(String.format("F: $%02X SS: #%05d $%04X NS: #%05d $%04X NAME: %s %s ",dFlag,dStartSector,dStartSector,dNumSectors,dNumSectors,sbHuman.toString(),sbHexa.toString()));
             
+        }
+    }
+
+    private void checkBitmap(AtrFile atrFile, PrintStream pr) {
+        
+        pr.println("Bitmap 1 listing");
+        listBitmapSector(atrFile.getSectorData(360),pr,0,720);
+        
+        if (atrFile.getSectors().size()>720) {
+          pr.println();
+          pr.println("Bitmap 2 listing");
+          listBitmapSector(atrFile.getSectorData(1024),pr,48,976);
         }
     }
     
