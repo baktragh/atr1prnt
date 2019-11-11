@@ -40,7 +40,7 @@ public class Atr1prnt {
         /*Run sector checker*/
         SectorChecker sc = new SectorChecker();
         printSectionStart(System.out, sc.getSectionName());
-      //  sc.check(atrFile,System.out,null);
+        sc.check(atrFile,System.out,null);
         
         /*Run boot checker*/
         BootChecker bc = new BootChecker();
@@ -54,7 +54,7 @@ public class Atr1prnt {
     }
 
     private static void printUsage() {
-        System.out.println("Usage: atr1prnt <disk_image>");
+        System.out.println("Usage: atr1prnt <disk_image> [options]");
         System.out.println("atr1prnt 0.1 - Print and verify contents of ATR disk images");
         System.out.println("(c) 2019 BAHA Software");
     }
