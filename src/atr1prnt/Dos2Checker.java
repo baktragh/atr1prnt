@@ -44,7 +44,7 @@ public class Dos2Checker implements AtrChecker {
             for (int k=0;k<8 && sectorCount<numSectors;k++) {
                 boolean b = ((sector[bytePos]&mask)==mask);
                 mask=mask>>1;
-                pr.println(String.format("S: #%05d $%04x F: %01d",curSector,curSector,b?1:0));
+                pr.println(String.format("S: #%05d $%06x F: %01d",curSector,curSector,b?1:0));
                 curSector++;
                 sectorCount++;
             }
@@ -66,7 +66,7 @@ public class Dos2Checker implements AtrChecker {
             StringBuilder sbHexa = new StringBuilder();
             for(int z=0;z<11;z++) {
                 char c = (char)sector[pos+z];
-                if (Character.isAlphabetic(c)) {
+                if (Character.isLetterOrDigit(c)) {
                     sbHuman.append(c);
                 }
                 else {
@@ -77,19 +77,19 @@ public class Dos2Checker implements AtrChecker {
             pos+=11;
             
             /*Now print it*/
-            pr.println(String.format("F: $%02X SS: #%05d $%04X NS: #%05d $%04X NAME: %s %s ",dFlag,dStartSector,dStartSector,dNumSectors,dNumSectors,sbHuman.toString(),sbHexa.toString()));
+            pr.println(String.format("F: $%02X SS: #%05d $%06X NS: #%05d $%06X NAME: %s %s ",dFlag,dStartSector,dStartSector,dNumSectors,dNumSectors,sbHuman.toString(),sbHexa.toString()));
             
         }
     }
 
     private void checkBitmap(AtrFile atrFile, PrintStream pr) {
         
-        pr.println("Bitmap 1 listing");
+        pr.println("Bitmap 1 listing (sector #360)");
         listBitmapSector(atrFile.getSectorData(360),pr,0,720);
         
         if (atrFile.getSectors().size()>720) {
           pr.println();
-          pr.println("Bitmap 2 listing");
+          pr.println("Bitmap 2 listing (sector #1024)");
           listBitmapSector(atrFile.getSectorData(1024),pr,48,976);
         }
     }
