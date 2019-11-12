@@ -11,7 +11,7 @@ public class AtrHeaderChecker implements AtrChecker {
        
        pr.println(String.format("File name: %s",new File(atrFile.getPathname()).getAbsolutePath()));
        pr.println(String.format("File size: %08d",atrFile.getFileSize()));
-       pr.println(String.format("Sectors: %08d Lo-Paragrahs: %05d Hi-Paragraphs: %05d", atrFile.getSectors().size(),atrFile.getParagraphsLo(),atrFile.getParahraphsHi()));
+       pr.println(String.format("Sectors: %06d Lo-Paragrahs: %06d Hi-Paragraphs: %06d", atrFile.getSectors().size(),atrFile.getParagraphsLo(),atrFile.getParahraphsHi()));
        pr.println(String.format("Sector size: %04d",atrFile.getSectorSize()));
        pr.println(String.format("CRC: $%08X Flag byte: $%02X ",atrFile.getCrc(),atrFile.getFlagByte()));
     }
