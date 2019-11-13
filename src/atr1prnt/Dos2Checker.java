@@ -4,9 +4,10 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
-import java.util.Random;
+import java.util.Set;
 
 public class Dos2Checker implements AtrChecker {
 
@@ -136,7 +137,7 @@ public class Dos2Checker implements AtrChecker {
             for (int z = 0; z < 11; z++) {
                 char c = (char) sector[pos + z];
                 char nc = (c>=128)?(char)(c-128):c;
-                if (Character.isLetterOrDigit(c) || c=='-' || c=='.' || c=='_' ) {
+                if (Character.isLetterOrDigit(c) || c=='-' || c=='.' || c=='_' || c==' ' ) {
                     sbHuman.append(nc);
                 }
                 else {
@@ -169,6 +170,8 @@ public class Dos2Checker implements AtrChecker {
         if (dumpBitmap) {
             pr.println("Bitmap 1:");
             listBitmapSector(atrFile.getSectorData(360), 0, 720, 10,bitmap1);
+            int numFree = getFreeSectorsFromBitmap(bitmap1);
+            pr.println(String.format("Available sectors in bitmap 1: $%06X",numFree));
         }
 
         if (atrFile.getSectors().size() > 720) {
@@ -178,9 +181,25 @@ public class Dos2Checker implements AtrChecker {
             if (dumpBitmap) {
                 pr.println("Bitmap 2:");
                 listBitmapSector(atrFile.getSectorData(1024), 48, 976, 0,bitmap2);
+                int numFree = getFreeSectorsFromBitmap(bitmap1);
+                pr.println(String.format("Available sectors in bitmap 2: $%06X",numFree));
             }
         }
     }
+    
+    private int getFreeSectorsFromBitmap(HashMap<Integer,Boolean> bitmap) {
+        
+        int numFree=0;
+        Set<Integer> keys = bitmap.keySet();
+        
+        Iterator<Integer> it = keys.iterator();
+        while(it.hasNext()) {
+            boolean b = bitmap.get(it.next());
+            if (b==true) numFree++;
+        }
+        return numFree;
+    }
+    
 
     private void checkVTOC1Header(int[] data) {
 
