@@ -134,8 +134,9 @@ public class Dos2Checker implements AtrChecker {
             StringBuilder sbHexa = new StringBuilder();
             for (int z = 0; z < 11; z++) {
                 char c = (char) sector[pos + z];
-                if (Character.isLetterOrDigit(c)) {
-                    sbHuman.append(c);
+                char nc = (c>=128)?(char)(c-128):c;
+                if (Character.isLetterOrDigit(c) || c=='-' || c=='.' || c=='_' ) {
+                    sbHuman.append(nc);
                 }
                 else {
                     sbHuman.append('.');
@@ -145,7 +146,7 @@ public class Dos2Checker implements AtrChecker {
             pos += 11;
 
             /*Now print it*/
-            pr.println(String.format("F: $%02X SS: #%05d $%06X NS: #%06d $%06X NAME: %s %s ", dFlag, dStartSector, dStartSector, dNumSectors, dNumSectors, sbHuman.toString(), sbHexa.toString()));
+            pr.println(String.format("F:$%02X S:$%06X L:$%06X N:%s %s", dFlag, dStartSector, dNumSectors, sbHuman.toString(), sbHexa.toString()));
             
             /*Add to the collection*/
             DirEntry de = new DirEntry();
@@ -321,11 +322,13 @@ public class Dos2Checker implements AtrChecker {
             /*Now the whole directory entry is processed*/
             
             /*Check continuity and flag it in the header*/
-            if (checkContinuity(entrySectorList)==true) {
-                headerSb.append("Contigous");
+            int discSector = getFirstDicontinuitySector(entrySectorList);
+            
+            if (discSector==-1) {
+                headerSb.append("Contiguous");
             }
             else {
-                headerSb.append("Non-contigous");
+                headerSb.append(String.format("Non-contiguous at: $%06X",discSector));
             }
             
             /*Print the entry*/
@@ -342,20 +345,15 @@ public class Dos2Checker implements AtrChecker {
         return true;
     }
     
-    private boolean checkContinuity(List<Integer> sectorList) {
+    private int getFirstDicontinuitySector(List<Integer> sectorList) {
         
-        boolean contig = true;
-        int prev=-1;
-        
-        for(int sn:sectorList) {
-            if (prev!=-1 && sn!=prev+1) {
-                contig=false;
-                break;
-            }
-            prev=sn;
+        int prev=sectorList.get(0);
+        for(int i=1;i<sectorList.size();i++) {
+            if (sectorList.get(i)!=prev+1) return prev;
+            prev=sectorList.get(i);
+            
         }
-        
-        return contig;
+        return -1;
         
     }
     
