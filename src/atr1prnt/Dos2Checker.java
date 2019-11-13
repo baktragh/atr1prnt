@@ -12,7 +12,8 @@ public class Dos2Checker implements AtrChecker {
     private PrintStream pr;
     private AtrFile atrFile;
     private boolean dumpBitmap;
-    
+    private boolean dumpFiles;
+
     
     private static class DirEntry {
         int flag;
@@ -28,6 +29,7 @@ public class Dos2Checker implements AtrChecker {
         this.pr = pr;
         this.atrFile = atrFile;
         dumpBitmap = props.containsKey("DOS2-BITMAP");
+        dumpFiles = props.containsKey("DOS2-DUMPFILES");
 
         boolean validDensity = checkDensity();
 
@@ -98,14 +100,21 @@ public class Dos2Checker implements AtrChecker {
             int mask = 128;
             for (int k = 0; k < 8 && sectorCount < numSectors; k++) {
                 boolean b = ((sector[bytePos] & mask) == mask);
-                mask = mask >> 1;
-                pr.println(String.format("S: #%06d $%06x F: %01d", curSector, curSector, b ? 1 : 0));
+                
+                if (sectorCount % 32 == 0) {
+                    if (sectorCount!=0) pr.println();
+                    pr.print(String.format("%04X: ",curSector));
+                }
+                pr.print(String.format("%01d", b ? 1 : 0));
                 bitmap.put(curSector, b);
+                
+                mask = mask >> 1;
                 curSector++;
                 sectorCount++;
             }
             bytePos++;
         }
+        pr.println();
 
     }
 
@@ -153,20 +162,19 @@ public class Dos2Checker implements AtrChecker {
 
         /*Check VTOC 1*/
         pr.println();
-        pr.println("VTOC 1 Sector (#360) Listing");
+        pr.println("VTOC 1 Sector (#360):");
         checkVTOC1Header(atrFile.getSectorData(360));
         if (dumpBitmap) {
-            pr.println("Bitmap 1 listing (sector #360). Sectors #0-#719");
+            pr.println("Bitmap 1:");
             listBitmapSector(atrFile.getSectorData(360), 0, 720, 10,bitmap1);
         }
 
         if (atrFile.getSectors().size() > 720) {
             pr.println();
-            pr.println("VTOC 2 Sector (#1024) Listing");
+            pr.println("VTOC 2 Sector (#1024):");
             checkVTOC2Header(atrFile.getSectorData(1024));
             if (dumpBitmap) {
-                pr.println();
-                pr.println("Bitmap 2 listing (sector #1024). Sectors #48-#1023");
+                pr.println("Bitmap 2:");
                 listBitmapSector(atrFile.getSectorData(1024), 48, 976, 0,bitmap2);
             }
         }
@@ -178,86 +186,151 @@ public class Dos2Checker implements AtrChecker {
         int totalSectors = data[1] + 256 * data[2];
         int unusedSectors = data[3] + 256 * data[4];
 
-        pr.println(String.format("DOS Code: $%02X Total Sectors: %06d Unused Sectors: %06d", dosCode, totalSectors, unusedSectors));
+        pr.println(String.format("DOS Code: $%02X Total Sectors: $%06X Unused Sectors: $%06X", dosCode, totalSectors, unusedSectors));
 
     }
 
     private void checkVTOC2Header(int[] data) {
         int unusedSectorsAbove = data[122] + 256 * data[123];
-        pr.println(String.format("Unused Sectors above sector 719: %06d", unusedSectorsAbove));
+        pr.println(String.format("Unused Sectors above sector 719: $%06X", unusedSectorsAbove));
     }
     
     private void checkFiles(ArrayList<DirEntry> dirEntries) {
         
-        pr.println("Walking directory: ");
+        String linesp = System.getProperty(("line.separator"));
+        
+        pr.println();
+        pr.println("Filesystem integrity: ");
+        HashSet<Integer> usedByFS = new HashSet<>();
         
         for(int i=0;i<dirEntries.size();i++) {
            
             DirEntry entry = dirEntries.get(i);
+            HashSet<Integer> usedByEntry = new HashSet<>();
+            ArrayList<Integer> entrySectorList = new ArrayList<>();
             
-            pr.println(String.format("%02d %01X %s %s", i,entry.flag,entry.humanName,entry.hexName));
-            pr.println(String.format("Start sector     : #%06d $%06X",entry.startSector,entry.startSector));
-            pr.println(String.format("Number of sectors: #%06d $%06X",entry.numSectors,entry.numSectors));
+            /*Each entry has three string builders*/
+            StringBuilder headerSb = new StringBuilder();
+            StringBuilder bodySb = new StringBuilder();
+            
+            pr.println();
+            
+            /*Entry header*/
+            headerSb.append(
+                    String.format("Number: $%02X Flag: $%02X Name:%s %s \nStart Sector: $%06X Sectors: $%06X ",i,entry.flag,entry.humanName,entry.hexName,entry.startSector,entry.numSectors)
+            );
+            
+            /*If empty or unused, just print header and proceed to the next entry*/
+            if (entry.flag==0 || entry.numSectors==0) {
+                pr.println(headerSb.toString().trim());
+                continue;
+            }
+            
             
             int sectorCount=0;
             int currSector=entry.startSector;
+            int lineCount=0;
             
-            HashSet<Integer> usedByFS = new HashSet<>();
-            
+            /*Try all sectors of the entry*/
             while(sectorCount<entry.numSectors) {
-            
-                HashSet<Integer> usedByEntry = new HashSet<>();
                 
-                StringBuilder sb = new StringBuilder();
-                StringBuilder se = new StringBuilder();
+                boolean sectorGood=true;
+                boolean halt=false;
                 
-                sb.append(String.format("Sector #%06d $%06X : ",currSector,currSector));
+                ArrayList<String> errorList = new ArrayList<>();
+                
             
                 /*Check if sector exists*/
                 if (!existsSector(currSector)) {
-                    se.append("Sector doesn't exist");
-                    pr.println(sb.toString());
-                    pr.println(se.toString());
-                    break;
+                    errorList.add("NO_SUCH_SECTOR");
+                    sectorGood=false;
+                    halt=true;
                 }
                 
+                entrySectorList.add(currSector);
+                
                 /*Check for loop*/
-                if (usedByEntry.add(currSector)==false) {
-                    se.append("Loop in sector chain");
-                    pr.println(sb.toString());
-                    pr.println(se.toString());
-                    break;
+                if (halt==false && usedByEntry.add(currSector)==false) {
+                    errorList.add("SECTOR_LOOP");
+                    sectorGood=false;
+                    halt=true;
                 }
                 
                 /*Check if two or more files using the same sector*/
-                if (usedByFS.add(currSector)==false) {
-                    se.append("Sector already used by another directory entry");
+                if (halt==false && usedByFS.add(currSector)==false) {
+                    errorList.add("USED_BY_OTHER_DIR_ENTRY");
+                    sectorGood=false;
+                    halt=false;
                 }
                 
+                int nextSect=-1;
                 
-                /*Check if sector belongs to the directory entry*/
-                int[] data = atrFile.getSectorData(currSector);
-                if (((data[125]>>2))!=i) {
-                    se.append(String.format("Sector doesn't belong to the directory entry. Belongs to entry #%02d.",data[0]));
+                if (halt==false) {
+                    /*Check if sector belongs to the directory entry*/
+                    int[] data = atrFile.getSectorData(currSector);
+                    if (((data[125]>>2))!=i) {
+                        errorList.add(String.format("BELONGS_TO_DIFFERENT_ENTRY $%02X.",data[0]));
+                        sectorGood=false;
+                    }
+                
+                    /*Check what is the next sector*/
+                    int hiSect = data[125] & 0x03;
+                    int loSect = data[126];
+                    nextSect = hiSect * 256 + loSect;
                 }
                 
-                /*Check what is the next sector*/
-                int hiSect = data[125]&0x03;
-                int loSect = data[126];
-                int nextSect = hiSect*256+loSect;
-                
-                sb.append(String.format("Next: #%06d $%06X",nextSect,nextSect));
-                pr.println(sb.toString());
-                
-                String errors = se.toString();
-                if (!errors.isEmpty()) {
-                    pr.println("Errors: "+se.toString());
+                /*If the sector is not good, report error message*/
+                if (sectorGood==false) {
+                    
+                    bodySb.append(linesp);
+                    bodySb.append(String.format("%06X ",currSector));
+         
+                    bodySb.append(" ");
+                    bodySb.append("Error(s) in sector");
+                    bodySb.append(linesp);
+                    
+                    for (String errMsg:errorList) {
+                        bodySb.append("        ");
+                        bodySb.append(errMsg);
+                        bodySb.append(linesp);
+                    }
+                    
+                    lineCount=0;
                 }
+                
+                /*If sector is good, continue formatted printout*/
+                else {
+                    if ((lineCount % 8)==0) {
+                        if (lineCount!=0) {
+                            bodySb.append(linesp);
+                            lineCount=0;
+                        } 
+                        bodySb.append((String.format("%06X: ",sectorCount)));
+                    }
+                    bodySb.append(String.format("%06X ",currSector));
+                }
+                
+                if (halt==true) break;
                 
                 currSector=nextSect;
                 sectorCount++;
+                lineCount++;
                 
             }
+            
+            /*Now the whole directory entry is processed*/
+            
+            /*Check continuity and flag it in the header*/
+            if (checkContinuity(entrySectorList)==true) {
+                headerSb.append("Contigous");
+            }
+            else {
+                headerSb.append("Non-contigous");
+            }
+            
+            /*Print the entry*/
+            pr.println(headerSb.toString());
+            pr.println(bodySb.toString());
             
         }
         
@@ -267,6 +340,23 @@ public class Dos2Checker implements AtrChecker {
     private boolean existsSector(int number) {
         if (number<1 || number>atrFile.getSectors().size()) return false;
         return true;
+    }
+    
+    private boolean checkContinuity(List<Integer> sectorList) {
+        
+        boolean contig = true;
+        int prev=-1;
+        
+        for(int sn:sectorList) {
+            if (prev!=-1 && sn!=prev+1) {
+                contig=false;
+                break;
+            }
+            prev=sn;
+        }
+        
+        return contig;
+        
     }
     
 

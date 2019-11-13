@@ -18,8 +18,8 @@ class BootChecker implements AtrChecker {
         int bLoad = data[2]+256*data[3];
         int bInit = data[4]+256*data[5];
         
-        pr.println(String.format("Boot flag: $%02X, Sectors: #%03d $%02X",bFlags,bSectors,bSectors));
-        pr.println(String.format("Load address: #%05d $%04X, Init address: #%05d $%04X",bLoad,bLoad,bInit,bInit));
+        pr.println(String.format("Boot flag: $%02X, Sectors: $%02X",bFlags,bSectors));
+        pr.println(String.format("Load address: $%04X, Init address: $%04X",bLoad,bInit));
         
     }
 

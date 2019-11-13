@@ -28,7 +28,11 @@ public class SectorChecker implements AtrChecker {
         pr.println();
         pr.println(String.format("Sector #%06d $%06X",number,number));
         for(int i=0;i<data.length;i++) {
-            if (i!=0 && i % 32 == 0) pr.println();
+            if (i%16==0) {
+                if (i!=0) pr.println();
+                pr.print(String.format("%04X: ",i));
+            }
+            
             pr.print(String.format("%02X ", data[i]));
         }
         pr.println();
