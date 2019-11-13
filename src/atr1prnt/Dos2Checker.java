@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Random;
 
 public class Dos2Checker implements AtrChecker {
 
@@ -232,6 +233,7 @@ public class Dos2Checker implements AtrChecker {
             int currSector=entry.startSector;
             int lineCount=0;
             
+            
             /*Try all sectors of the entry*/
             while(sectorCount<entry.numSectors) {
                 
@@ -258,7 +260,7 @@ public class Dos2Checker implements AtrChecker {
                 }
                 
                 /*Check if two or more files using the same sector*/
-                if (halt==false && usedByFS.add(currSector)==false) {
+                if ((halt==false && usedByFS.add(currSector)==false)) {
                     errorList.add("USED_BY_OTHER_DIR_ENTRY");
                     sectorGood=false;
                     halt=false;
@@ -295,7 +297,6 @@ public class Dos2Checker implements AtrChecker {
                         bodySb.append(errMsg);
                         bodySb.append(linesp);
                     }
-                    
                     lineCount=0;
                 }
                 
@@ -306,16 +307,30 @@ public class Dos2Checker implements AtrChecker {
                             bodySb.append(linesp);
                             lineCount=0;
                         } 
-                        bodySb.append((String.format("%06X: ",sectorCount)));
+                        if (sectorCount % 8 ==0 ) {
+                            bodySb.append((String.format("%06X: ",sectorCount)));
+                        }
+                        else {
+                            int gap = sectorCount % 8;
+                            bodySb.append((String.format("%06X: ",sectorCount-gap)));
+                            for(int g=0;g<gap;g++) {
+                                bodySb.append("       ");
+                            }
+                            lineCount=gap;
+                        }
+                        
                     }
                     bodySb.append(String.format("%06X ",currSector));
+                    lineCount++;
+                    
                 }
                 
                 if (halt==true) break;
                 
                 currSector=nextSect;
                 sectorCount++;
-                lineCount++;
+                
+                
                 
             }
             
