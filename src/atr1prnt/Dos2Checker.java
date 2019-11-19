@@ -17,12 +17,24 @@ public class Dos2Checker implements AtrChecker {
     private boolean dumpFiles;
 
     
+    
     private static class DirEntry {
         int flag;
         String humanName;
         String hexName;
         int startSector;
         int numSectors;
+    }
+    
+    private static class DirEntryError {
+        
+        int sector;
+        String errorMessage;
+        
+        DirEntryError(int sector,String errorMsg) {
+            this.sector=sector;
+            this.errorMessage=errorMsg;
+        }
     }
     
 
@@ -222,18 +234,20 @@ public class Dos2Checker implements AtrChecker {
         
         pr.println();
         pr.println("Filesystem integrity: ");
-        HashSet<Integer> usedByFS = new HashSet<>();
+        HashMap<Integer,Integer> usedByFS = new HashMap<>();
         
         for(int i=0;i<dirEntries.size();i++) {
            
             DirEntry entry = dirEntries.get(i);
             HashSet<Integer> usedByEntry = new HashSet<>();
             ArrayList<Integer> entrySectorList = new ArrayList<>();
+            ArrayList<Integer> fileData = new ArrayList<>();
             
             /*Each entry has three string builders*/
             StringBuilder headerSb = new StringBuilder();
             StringBuilder bodySb = new StringBuilder();
             
+            /*Begin with empty line*/
             pr.println();
             
             /*Entry header*/
@@ -250,22 +264,17 @@ public class Dos2Checker implements AtrChecker {
             
             int sectorCount=0;
             int currSector=entry.startSector;
-            int lineCount=0;
             
+            ArrayList<DirEntryError> errorList = new ArrayList<>();
             
             /*Try all sectors of the entry*/
             while(sectorCount<entry.numSectors) {
                 
-                boolean sectorGood=true;
                 boolean halt=false;
                 
-                ArrayList<String> errorList = new ArrayList<>();
-                
-            
                 /*Check if sector exists*/
                 if (!existsSector(currSector)) {
-                    errorList.add("NO_SUCH_SECTOR");
-                    sectorGood=false;
+                    errorList.add(new DirEntryError(currSector,"No such sector"));
                     halt=true;
                 }
                 
@@ -273,87 +282,71 @@ public class Dos2Checker implements AtrChecker {
                 
                 /*Check for loop*/
                 if (halt==false && usedByEntry.add(currSector)==false) {
-                    errorList.add("SECTOR_LOOP");
-                    sectorGood=false;
+                    errorList.add(new DirEntryError(currSector,"Sector loop"));
                     halt=true;
                 }
                 
                 /*Check if two or more files using the same sector*/
-                if ((halt==false && usedByFS.add(currSector)==false)) {
-                    errorList.add("USED_BY_OTHER_DIR_ENTRY");
-                    sectorGood=false;
-                    halt=false;
+                if (halt==false) {
+                    
+                    if (usedByFS.containsKey(currSector)) {
+                        errorList.add(new DirEntryError(currSector,String.format("Sector used by other entry %02X",usedByFS.get(currSector))));
+                    }
+                    else {
+                        usedByFS.put(currSector, i);
+                    }
+                        
                 }
                 
                 int nextSect=-1;
                 
+                /*If not halt, probe the sector and determine what is the next one*/
                 if (halt==false) {
                     /*Check if sector belongs to the directory entry*/
                     int[] data = atrFile.getSectorData(currSector);
                     if (((data[125]>>2))!=i) {
-                        errorList.add(String.format("BELONGS_TO_DIFFERENT_ENTRY $%02X.",data[0]));
-                        sectorGood=false;
+                        errorList.add(new DirEntryError(currSector,String.format("Sector belongs to different entry $%02X.",data[0])));
                     }
                 
                     /*Check what is the next sector*/
                     int hiSect = data[125] & 0x03;
                     int loSect = data[126];
                     nextSect = hiSect * 256 + loSect;
+                    
+                    /*Check how much data in the sector*/
+                    int numBytes = data[127];
+                    if (numBytes>125) {
+                        errorList.add(new DirEntryError(currSector,String.format("Number of bytes in the sector exceeds maximum: $%02X.",numBytes)));
+                    }
+                    
+                    /*Collect data for file dump*/
+                    if (dumpFiles) {
+                        int dumpBytes = numBytes;
+                        if (dumpBytes>125) dumpBytes=125;
+                        for (int k = 1; k < dumpBytes; k++) {
+                            fileData.add(data[k]);
+                        }
+                    }
+                    
                 }
                 
-                /*If the sector is not good, report error message*/
-                if (sectorGood==false) {
-                    
-                    bodySb.append(linesp);
-                    bodySb.append(String.format("%06X ",currSector));
-         
-                    bodySb.append(" ");
-                    bodySb.append("Error(s) in sector");
-                    bodySb.append(linesp);
-                    
-                    for (String errMsg:errorList) {
-                        bodySb.append("        ");
-                        bodySb.append(errMsg);
+                /*Print the sector number*/
+                if ((sectorCount % 8) == 0) {
+                    if (sectorCount != 0) {
                         bodySb.append(linesp);
                     }
-                    lineCount=0;
+                    bodySb.append((String.format("%06X: ", sectorCount)));
                 }
+                bodySb.append(String.format("%06X ", currSector));
                 
-                /*If sector is good, continue formatted printout*/
-                else {
-                    if ((lineCount % 8)==0) {
-                        if (lineCount!=0) {
-                            bodySb.append(linesp);
-                            lineCount=0;
-                        } 
-                        if (sectorCount % 8 ==0 ) {
-                            bodySb.append((String.format("%06X: ",sectorCount)));
-                        }
-                        else {
-                            int gap = sectorCount % 8;
-                            bodySb.append((String.format("%06X: ",sectorCount-gap)));
-                            for(int g=0;g<gap;g++) {
-                                bodySb.append("       ");
-                            }
-                            lineCount=gap;
-                        }
-                        
-                    }
-                    bodySb.append(String.format("%06X ",currSector));
-                    lineCount++;
-                    
-                }
-                
+                /*Stop, when there is no sense to continue*/
                 if (halt==true) break;
                 
                 currSector=nextSect;
                 sectorCount++;
-                
-                
-                
             }
-            
             /*Now the whole directory entry is processed*/
+            
             
             /*Check continuity and flag it in the header*/
             int discSector = getFirstDicontinuitySector(entrySectorList);
@@ -368,6 +361,16 @@ public class Dos2Checker implements AtrChecker {
             /*Print the entry*/
             pr.println(headerSb.toString());
             pr.println(bodySb.toString());
+            
+            /*Prin errors, if there were any*/
+            if (!errorList.isEmpty()) {
+                pr.println("Errors in the entry");
+                for (DirEntryError der:errorList) {
+                    pr.println(String.format("%06X: %s", der.sector,der.errorMessage));
+                }
+            }
+            
+            if (dumpFiles==true) dumpFile(pr,fileData);
             
         }
         
@@ -390,6 +393,46 @@ public class Dos2Checker implements AtrChecker {
         return -1;
         
     }
+    
+    private void dumpFile(PrintStream pr, ArrayList<Integer> fileData) {
+        pr.println("File dump:");
+        
+        StringBuilder sb = new StringBuilder();
+        
+        for (int i=0;i<fileData.size();i++) {
+            
+            if (i%16==0) {
+                if (i!=0) {
+                    pr.print("|"+sb.toString());
+                    sb.setLength(0);
+                    pr.println();
+                }
+                pr.printf("%08X|",i);
+            }
+            
+            pr.printf("%02X ",fileData.get(i));
+            
+            /*Character representation*/
+            char c = (char)fileData.get(i).intValue();
+            if (c>128) c-=128;
+            if (Character.isLetterOrDigit(c) || c==' ') {
+                sb.append(c);
+            }
+            else {
+                sb.append('.');
+            }
+        }
+        
+        /*Finish the ATASCII printout*/
+        if (sb.length()!=0) {
+            for (int i=0;i<16-sb.length();i++) {
+                pr.print("   ");
+            }
+            pr.println("|"+sb.toString());
+        }
+        
+    }
+
     
 
 }
