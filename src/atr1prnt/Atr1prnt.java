@@ -1,6 +1,7 @@
 package atr1prnt;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -46,7 +47,7 @@ public class Atr1prnt {
             }
         }
         
-         /*Run file system checker*/
+        /*Check if only one file system has been selected*/
         List<String> fsPropList = getPropertiesStartingWith("FS-", runProperties);
         
         if (fsPropList.size()>1) {
@@ -54,21 +55,29 @@ public class Atr1prnt {
             System.exit(-1);
         }
         
+        /*Prepare summary report*/
+        SummaryReport sr = new SummaryReport();
+        PrintStream pr = System.out;
+        
+        if (runProperties.containsKey("SILENT")) {
+            pr = new PrintStream(new NullOutputStream());
+        }
+        
         
         /*Run header checker*/
         AtrHeaderChecker  ahc = new AtrHeaderChecker();
-        printSectionStart(System.out, ahc.getSectionName());
-        ahc.check(atrFile,System.out,runProperties);
+        printSectionStart(pr, ahc.getSectionName());
+        ahc.check(atrFile,pr,runProperties,sr);
         
         /*Run sector checker*/
         SectorChecker sc = new SectorChecker();
-        printSectionStart(System.out, sc.getSectionName());
-        sc.check(atrFile,System.out,runProperties);
+        printSectionStart(pr, sc.getSectionName());
+        sc.check(atrFile,pr,runProperties,sr);
         
         /*Run boot checker*/
         BootChecker bc = new BootChecker();
-        printSectionStart(System.out,bc.getSectionName());
-        bc.check(atrFile,System.out,runProperties);
+        printSectionStart(pr,bc.getSectionName());
+        bc.check(atrFile,pr,runProperties,sr);
         
         /*Decide which file system checker to run*/
         AtrChecker fsChecker = new NoFSChecker();
@@ -83,20 +92,38 @@ public class Atr1prnt {
         }
         
         /*Run the file system check*/
-        printSectionStart(System.out,fsChecker.getSectionName());
-        fsChecker.check(atrFile, System.out, runProperties);
+        printSectionStart(pr,fsChecker.getSectionName());
+        fsChecker.check(atrFile, pr, runProperties,sr);
         
+        
+        /*Print summary if requested. Always to system out*/
+        if (runProperties.containsKey("SUMMARY")) {
+            printSectionStart(System.out,"SUMMARY REPORT");
+            sr.printSummary(System.out);
+        }
+        
+        /*Return return code*/
+        Severity maxSeverity = sr.getMaxSeverity();
+        int retCode = 0;
+        
+        if (maxSeverity.isGreaterThan(Severity.SEV_INFO)) {
+            retCode = -1;
+        }
+        
+        System.exit(retCode);
         
     }
 
     private static void printUsage() {
-        System.out.println("Usage: atr1prnt <disk_image> [options]");
+        System.out.println("Usage: java -jar atr1prnt.jar <disk_image> [options]");
         System.out.println("atr1prnt 0.1 - Print and verify contents of ATR disk images");
         System.out.println("(c) 2019 BAHA Software");
         System.out.println();
         System.out.println("General options: ");
         System.out.println("NOSECTORS - Skip sector dump");
         System.out.println("NOBOOT    - Skip boot sector dump");
+        System.out.println("SILENT    - Silent run with no output");
+        System.out.println("SUMMARY   - Display summary report");
         System.out.println();
         System.out.println("File system choice: ");
         System.out.println("FS-DOS2   - DOS 2 filesystem dump (default)");
@@ -125,6 +152,16 @@ public class Atr1prnt {
             if (prop.startsWith(start)) matchingProps.add(prop);
         }
         return matchingProps;
+    }
+    
+    
+    private static class NullOutputStream extends OutputStream {
+
+        @Override
+        public void write(int b) throws IOException {
+            
+        }
+        
     }
     
 }

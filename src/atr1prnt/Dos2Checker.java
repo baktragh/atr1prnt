@@ -15,8 +15,11 @@ public class Dos2Checker implements AtrChecker {
     private AtrFile atrFile;
     private boolean dumpBitmap;
     private boolean dumpFiles;
-
     
+    private static final int NO_NEXT_SECT=-1;
+    private static final int NO_DISCONT_SECT=-1;
+
+    private SummaryReport sumReport;
     
     private static class DirEntry {
         int flag;
@@ -24,6 +27,7 @@ public class Dos2Checker implements AtrChecker {
         String hexName;
         int startSector;
         int numSectors;
+        
     }
     
     private static class DirEntryError {
@@ -39,16 +43,18 @@ public class Dos2Checker implements AtrChecker {
     
 
     @Override
-    public void check(AtrFile atrFile, PrintStream pr, Properties props) {
+    public void check(AtrFile atrFile, PrintStream pr, Properties props,SummaryReport sumReport) {
         this.pr = pr;
         this.atrFile = atrFile;
         dumpBitmap = props.containsKey("DOS2-BITMAP");
         dumpFiles = props.containsKey("DOS2-DUMPFILES");
+        this.sumReport=sumReport;
 
         boolean validDensity = checkDensity();
 
         if (!validDensity) {
             pr.println("DOS2: Error: Unsupported density");
+            sumReport.addItem(new SummaryInfoItem(Severity.SEV_FATAL,"DOS2","Unsupported density"));
             return;
         }
         
@@ -278,91 +284,8 @@ public class Dos2Checker implements AtrChecker {
             /*Try all sectors of the entry*/
             while(sectorCount<entry.numSectors) {
                 
-                boolean halt=false;
-                
-                
-                int ofsDirEntryNum;
-                int ofsNextSecHi;
-                int ofsNextSecLo;
-                int ofsNumBytes;
-                int maxNumBytes;
-                
-                
-                if (atrFile.getSectorData(currSector).length == 128) {
-
-                    ofsDirEntryNum = 125;
-                    ofsNextSecHi = 125;
-                    ofsNextSecLo = 126;
-                    ofsNumBytes = 127;
-                    maxNumBytes = 125;
-                }
-                else {
-                    ofsDirEntryNum = 125 + 128;
-                    ofsNextSecHi = 125 + 128;
-                    ofsNextSecLo = 126 + 128;
-                    ofsNumBytes = 127+128;
-                    maxNumBytes = 125+128;
-                }
-                
-                
-                /*Check if sector exists*/
-                if (!existsSector(currSector)) {
-                    errorList.add(new DirEntryError(currSector,"No such sector"));
-                    halt=true;
-                }
-                
-                entrySectorList.add(currSector);
-                
-                /*Check for loop*/
-                if (halt==false && usedByEntry.add(currSector)==false) {
-                    errorList.add(new DirEntryError(currSector,"Sector loop"));
-                    halt=true;
-                }
-                
-                /*Check if two or more files using the same sector*/
-                if (halt==false) {
-                    
-                    if (usedByFS.containsKey(currSector)) {
-                        errorList.add(new DirEntryError(currSector,String.format("Sector used by other entry %02X",usedByFS.get(currSector))));
-                    }
-                    else {
-                        usedByFS.put(currSector, i);
-                    }
-                        
-                }
-                
-                int nextSect=-1;
-                
-                /*If not halt, probe the sector and determine what is the next one*/
-                if (halt==false) {
-                    /*Check if sector belongs to the directory entry*/
-                    int[] data = atrFile.getSectorData(currSector);
-                    int dirEntryNum = data[ofsDirEntryNum]>>2;
-                    if (dirEntryNum!=i) {
-                        errorList.add(new DirEntryError(currSector,String.format("Sector belongs to different entry $%02X.",dirEntryNum)));
-                    }
-                
-                    /*Check what is the next sector*/
-                    int hiSect = data[ofsNextSecHi] & 0x03;
-                    int loSect = data[ofsNextSecLo];
-                    nextSect = hiSect * 256 + loSect;
-                    
-                    /*Check how much data in the sector*/
-                    int numBytes = data[ofsNumBytes];
-                    if (numBytes>maxNumBytes) {
-                        errorList.add(new DirEntryError(currSector,String.format("Number of bytes in the sector exceeds maximum: $%02X.",numBytes)));
-                    }
-                    
-                    /*Collect data for file dump*/
-                    if (dumpFiles) {
-                        int dumpBytes = numBytes;
-                        if (dumpBytes>maxNumBytes) dumpBytes=maxNumBytes;
-                        for (int k = 0; k < dumpBytes; k++) {
-                            fileData.add(data[k]);
-                        }
-                    }
-                    
-                }
+                /*Check the sector*/
+                int nextSect=checkSectorInChain(i, currSector, errorList, entrySectorList, usedByEntry, usedByFS, fileData);
                 
                 /*Print the sector number*/
                 if ((sectorCount % 8) == 0) {
@@ -374,7 +297,7 @@ public class Dos2Checker implements AtrChecker {
                 bodySb.append(String.format("%06X ", currSector));
                 
                 /*Stop, when there is no sense to continue*/
-                if (halt==true) break;
+                if (nextSect==NO_NEXT_SECT) break;
                 
                 currSector=nextSect;
                 sectorCount++;
@@ -385,7 +308,7 @@ public class Dos2Checker implements AtrChecker {
             /*Check continuity and flag it in the header*/
             int discSector = getFirstDicontinuitySector(entrySectorList);
             
-            if (discSector==-1) {
+            if (discSector==NO_DISCONT_SECT) {
                 headerSb.append("Contiguous");
             }
             else {
@@ -402,6 +325,7 @@ public class Dos2Checker implements AtrChecker {
                 for (DirEntryError der:errorList) {
                     pr.println(String.format("%06X: %s", der.sector,der.errorMessage));
                 }
+                sumReport.addItem(new SummaryInfoItem(Severity.SEV_FATAL,"DOS2",String.format("Directory entry $%02X error",i)));
             }
             
             if (dumpFiles==true) dumpFile(pr,fileData);
@@ -410,6 +334,99 @@ public class Dos2Checker implements AtrChecker {
         
         
     }
+    
+    
+    private int checkSectorInChain(int entryNo, int currSector, ArrayList<DirEntryError> errorList, ArrayList<Integer> entrySectorList, HashSet<Integer> usedByEntry, HashMap<Integer, Integer> usedByFS, ArrayList<Integer> fileData) {
+        boolean halt = false;
+
+        int ofsDirEntryNum;
+        int ofsNextSecHi;
+        int ofsNextSecLo;
+        int ofsNumBytes;
+        int maxNumBytes;
+        
+        /*Check if sector exists*/
+        if (!existsSector(currSector)) {
+            errorList.add(new DirEntryError(currSector, "No such sector"));
+            halt = true;
+            return NO_NEXT_SECT;
+        }
+
+        if (atrFile.getSectorData(currSector).length == 128) {
+
+            ofsDirEntryNum = 125;
+            ofsNextSecHi = 125;
+            ofsNextSecLo = 126;
+            ofsNumBytes = 127;
+            maxNumBytes = 125;
+        }
+        else {
+            ofsDirEntryNum = 125 + 128;
+            ofsNextSecHi = 125 + 128;
+            ofsNextSecLo = 126 + 128;
+            ofsNumBytes = 127 + 128;
+            maxNumBytes = 125 + 128;
+        }
+
+        
+
+        entrySectorList.add(currSector);
+
+        /*Check for loop*/
+        if (halt == false && usedByEntry.add(currSector) == false) {
+            errorList.add(new DirEntryError(currSector, "Sector loop"));
+            halt = true;
+        }
+
+        /*Check if two or more files using the same sector*/
+        if (halt == false) {
+
+            if (usedByFS.containsKey(currSector)) {
+                errorList.add(new DirEntryError(currSector, String.format("Sector used by other entry %02X", usedByFS.get(currSector))));
+            }
+            else {
+                usedByFS.put(currSector, entryNo);
+            }
+
+        }
+
+        int nextSect = NO_NEXT_SECT;
+
+        /*If not halt, probe the sector and determine what is the next one*/
+        if (halt == false) {
+            /*Check if sector belongs to the directory entry*/
+            int[] data = atrFile.getSectorData(currSector);
+            int dirEntryNum = data[ofsDirEntryNum] >> 2;
+            if (dirEntryNum != entryNo) {
+                errorList.add(new DirEntryError(currSector, String.format("Sector belongs to different entry $%02X.", dirEntryNum)));
+            }
+
+            /*Check what is the next sector*/
+            int hiSect = data[ofsNextSecHi] & 0x03;
+            int loSect = data[ofsNextSecLo];
+            nextSect = hiSect * 256 + loSect;
+
+            /*Check how much data in the sector*/
+            int numBytes = data[ofsNumBytes];
+            if (numBytes > maxNumBytes) {
+                errorList.add(new DirEntryError(currSector, String.format("Number of bytes in the sector exceeds maximum: $%02X.", numBytes)));
+            }
+
+            /*Collect data for file dump*/
+            if (dumpFiles) {
+                int dumpBytes = numBytes;
+                if (dumpBytes > maxNumBytes) {
+                    dumpBytes = maxNumBytes;
+                }
+                for (int k = 0; k < dumpBytes; k++) {
+                    fileData.add(data[k]);
+                }
+            }
+
+        }
+        return halt==true?NO_NEXT_SECT:nextSect;
+    }
+    
     
     private boolean existsSector(int number) {
         if (number<1 || number>atrFile.getSectors().size()) return false;
@@ -424,9 +441,10 @@ public class Dos2Checker implements AtrChecker {
             prev=sectorList.get(i);
             
         }
-        return -1;
+        return NO_DISCONT_SECT;
         
     }
+    
     
     private void dumpFile(PrintStream pr, ArrayList<Integer> fileData) {
         pr.println("File dump:");

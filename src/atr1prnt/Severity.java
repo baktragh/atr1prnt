@@ -15,4 +15,8 @@ public enum Severity {
         return severity;
     }
     
+    boolean isGreaterThan(Severity sev) {
+        return severity>sev.severity;
+    }
+    
 }

@@ -7,7 +7,7 @@ import java.util.Properties;
 class BootChecker implements AtrChecker {
 
     @Override
-    public void check(AtrFile atrFile, PrintStream pr, Properties props) {
+    public void check(AtrFile atrFile, PrintStream pr, Properties props,SummaryReport sumReport) {
         
         if (props.containsKey("NOBOOT")) return;
         

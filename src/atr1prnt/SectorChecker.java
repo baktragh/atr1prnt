@@ -9,7 +9,7 @@ public class SectorChecker implements AtrChecker {
     private PrintStream pr;
     
     @Override
-    public void check(AtrFile atrFile, PrintStream pr, Properties props) {
+    public void check(AtrFile atrFile, PrintStream pr, Properties props,SummaryReport sumReport) {
         
         if (props.containsKey("NOSECTORS")) return;
         

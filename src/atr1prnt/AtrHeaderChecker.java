@@ -7,7 +7,7 @@ import java.util.Properties;
 public class AtrHeaderChecker implements AtrChecker {
 
     @Override
-    public void check(AtrFile atrFile, PrintStream pr, Properties props) {
+    public void check(AtrFile atrFile, PrintStream pr, Properties props,SummaryReport sumReport) {
        
        pr.println(String.format("File name: %s",new File(atrFile.getPathname()).getAbsolutePath()));
        pr.println(String.format("File size: $%06X",atrFile.getFileSize()));
