@@ -80,11 +80,19 @@ public class Dos2Checker implements AtrChecker {
             return true;
         }
         else if (secSize == 128 && sectors == 1040) {
-            pr.println("Density: MEDIUM (130K)");
+            pr.println("Density: ENHANCED (130K)");
             return true;
         }
         else if (secSize == 128 && sectors < 1040 && sectors >= 1024) {
-            pr.println("Density: MEDIUM (Truncated)");
+            pr.println("Density: ENHANCED (Truncated)");
+            return true;
+        }
+        else if (secSize == 256 && sectors==720) {
+            pr.println("Density: DOUBLE (180K)");
+            return true;
+        }
+        else if (secSize == 256 && sectors<720) {
+            pr.println("Density: DOUBLE (Truncated)");
             return true;
         }
         else {
@@ -272,6 +280,31 @@ public class Dos2Checker implements AtrChecker {
                 
                 boolean halt=false;
                 
+                
+                int ofsDirEntryNum;
+                int ofsNextSecHi;
+                int ofsNextSecLo;
+                int ofsNumBytes;
+                int maxNumBytes;
+                
+                
+                if (atrFile.getSectorData(currSector).length == 128) {
+
+                    ofsDirEntryNum = 125;
+                    ofsNextSecHi = 125;
+                    ofsNextSecLo = 126;
+                    ofsNumBytes = 127;
+                    maxNumBytes = 125;
+                }
+                else {
+                    ofsDirEntryNum = 125 + 128;
+                    ofsNextSecHi = 125 + 128;
+                    ofsNextSecLo = 126 + 128;
+                    ofsNumBytes = 127+128;
+                    maxNumBytes = 125+128;
+                }
+                
+                
                 /*Check if sector exists*/
                 if (!existsSector(currSector)) {
                     errorList.add(new DirEntryError(currSector,"No such sector"));
@@ -304,25 +337,26 @@ public class Dos2Checker implements AtrChecker {
                 if (halt==false) {
                     /*Check if sector belongs to the directory entry*/
                     int[] data = atrFile.getSectorData(currSector);
-                    if (((data[125]>>2))!=i) {
-                        errorList.add(new DirEntryError(currSector,String.format("Sector belongs to different entry $%02X.",data[0])));
+                    int dirEntryNum = data[ofsDirEntryNum]>>2;
+                    if (dirEntryNum!=i) {
+                        errorList.add(new DirEntryError(currSector,String.format("Sector belongs to different entry $%02X.",dirEntryNum)));
                     }
                 
                     /*Check what is the next sector*/
-                    int hiSect = data[125] & 0x03;
-                    int loSect = data[126];
+                    int hiSect = data[ofsNextSecHi] & 0x03;
+                    int loSect = data[ofsNextSecLo];
                     nextSect = hiSect * 256 + loSect;
                     
                     /*Check how much data in the sector*/
-                    int numBytes = data[127];
-                    if (numBytes>125) {
+                    int numBytes = data[ofsNumBytes];
+                    if (numBytes>maxNumBytes) {
                         errorList.add(new DirEntryError(currSector,String.format("Number of bytes in the sector exceeds maximum: $%02X.",numBytes)));
                     }
                     
                     /*Collect data for file dump*/
                     if (dumpFiles) {
                         int dumpBytes = numBytes;
-                        if (dumpBytes>125) dumpBytes=125;
+                        if (dumpBytes>maxNumBytes) dumpBytes=maxNumBytes;
                         for (int k = 1; k < dumpBytes; k++) {
                             fileData.add(data[k]);
                         }

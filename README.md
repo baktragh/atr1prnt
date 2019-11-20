@@ -19,7 +19,7 @@ ATR1PRNT is a utility that allows you to dump ATR files.
 
 ## FMS Specific Dumps
 
-### DOS 2 Compatible file system dump with support for medium density
+### DOS 2 Compatible file system dump with support for enhanced and double density
 
  * Directory dump
  * VTOC and Bitmap dump

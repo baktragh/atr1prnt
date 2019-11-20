@@ -104,6 +104,8 @@ public class Atr1prnt {
         System.out.println();
         System.out.println("File system options: ");
         System.out.println("DOS2-BITMAP - Include dump of DOS2 bitmap");
+        System.out.println("DOS2-DUMPFILES - Include dump of DOS2 bitmap");
+
     }
     
     private static void printSectionStart(PrintStream ps,String sectionTitle) {
