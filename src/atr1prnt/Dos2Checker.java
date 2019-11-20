@@ -357,7 +357,7 @@ public class Dos2Checker implements AtrChecker {
                     if (dumpFiles) {
                         int dumpBytes = numBytes;
                         if (dumpBytes>maxNumBytes) dumpBytes=maxNumBytes;
-                        for (int k = 1; k < dumpBytes; k++) {
+                        for (int k = 0; k < dumpBytes; k++) {
                             fileData.add(data[k]);
                         }
                     }
