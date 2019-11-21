@@ -1,5 +1,11 @@
-package atr1prnt;
+package atr1prnt.fs;
 
+import atr1prnt.AtrChecker;
+import atr1prnt.AtrFile;
+import atr1prnt.Severity;
+import atr1prnt.SummaryInfoItem;
+import atr1prnt.SummaryReport;
+import hexdump.HexDumpStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -120,29 +126,22 @@ public class Dos2Checker implements AtrChecker {
 
     private void listBitmapSector(int[] sector, int firstSector, int numSectors, int bitmapOffset,HashMap<Integer,Boolean> bitmap) {
 
-        int curSector = firstSector;
         int bytePos = bitmapOffset;
         int sectorCount = 0;
+        
+        HexDumpStream bitmapDump = new HexDumpStream(32, 1, 4, "", ":", "|", true, false,firstSector);
 
         while (sectorCount < numSectors) {
             int mask = 128;
             for (int k = 0; k < 8 && sectorCount < numSectors; k++) {
                 boolean b = ((sector[bytePos] & mask) == mask);
-                
-                if (sectorCount % 32 == 0) {
-                    if (sectorCount!=0) pr.println();
-                    pr.print(String.format("%04X: ",curSector));
-                }
-                pr.print(String.format("%01d", b ? 1 : 0));
-                bitmap.put(curSector, b);
-                
+                bitmapDump.add(b ? 1 : 0);
                 mask = mask >> 1;
-                curSector++;
                 sectorCount++;
             }
             bytePos++;
         }
-        pr.println();
+        pr.print(bitmapDump.flush());
 
     }
 
@@ -239,7 +238,7 @@ public class Dos2Checker implements AtrChecker {
 
     private void checkVTOC2Header(int[] data) {
         int unusedSectorsAbove = data[122] + 256 * data[123];
-        pr.println(String.format("Unused Sectors above sector 719: $%06X", unusedSectorsAbove));
+        pr.println(String.format("Unused Sectors above sector #719: $%06X", unusedSectorsAbove));
     }
     
     private void checkFiles(ArrayList<DirEntry> dirEntries) {
@@ -281,20 +280,15 @@ public class Dos2Checker implements AtrChecker {
             
             ArrayList<DirEntryError> errorList = new ArrayList<>();
             
+            HexDumpStream chainDump = new HexDumpStream(8, 6, 6, " ", ": ", "|", true, false,0);
+            
             /*Try all sectors of the entry*/
             while(sectorCount<entry.numSectors) {
                 
                 /*Check the sector*/
                 int nextSect=checkSectorInChain(i, currSector, errorList, entrySectorList, usedByEntry, usedByFS, fileData);
                 
-                /*Print the sector number*/
-                if ((sectorCount % 8) == 0) {
-                    if (sectorCount != 0) {
-                        bodySb.append(linesp);
-                    }
-                    bodySb.append((String.format("%06X: ", sectorCount)));
-                }
-                bodySb.append(String.format("%06X ", currSector));
+                chainDump.add(currSector);
                 
                 /*Stop, when there is no sense to continue*/
                 if (nextSect==NO_NEXT_SECT) break;
@@ -303,16 +297,26 @@ public class Dos2Checker implements AtrChecker {
                 sectorCount++;
             }
             /*Now the whole directory entry is processed*/
+            bodySb.append(chainDump.flush());
             
             
             /*Check continuity and flag it in the header*/
             int discSector = getFirstDicontinuitySector(entrySectorList);
             
-            if (discSector==NO_DISCONT_SECT) {
-                headerSb.append("Contiguous");
+            
+            /*If there is any error, flag file as corrupt*/
+            if (!errorList.isEmpty()) {
+                headerSb.append("Corrupt");
             }
+            
+            /*Otherwise specify as contigous or non-contiguous*/
             else {
-                headerSb.append(String.format("Non-contiguous at: $%06X",discSector));
+                if (discSector == NO_DISCONT_SECT) {
+                    headerSb.append("Contiguous");
+                }
+                else {
+                    headerSb.append(String.format("Non-contiguous at: $%06X", discSector));
+                }
             }
             
             /*Print the entry*/
@@ -449,39 +453,12 @@ public class Dos2Checker implements AtrChecker {
     private void dumpFile(PrintStream pr, ArrayList<Integer> fileData) {
         pr.println("File dump:");
         
-        StringBuilder sb = new StringBuilder();
-        
-        for (int i=0;i<fileData.size();i++) {
-            
-            if (i%16==0) {
-                if (i!=0) {
-                    pr.print("|"+sb.toString());
-                    sb.setLength(0);
-                    pr.println();
-                }
-                pr.printf("%08X|",i);
-            }
-            
-            pr.printf("%02X ",fileData.get(i));
-            
-            /*Character representation*/
-            char c = (char)fileData.get(i).intValue();
-            if (c>128) c-=128;
-            if (Character.isLetterOrDigit(c) || c==' ') {
-                sb.append(c);
-            }
-            else {
-                sb.append('.');
-            }
+        HexDumpStream hexDump = new HexDumpStream(16, 2, 6, " ", ":", "|", true, true,0);
+        for (int val:fileData) {
+            hexDump.add(val);
         }
         
-        /*Finish the ATASCII printout*/
-        if (sb.length()!=0) {
-            for (int i=0;i<16-sb.length();i++) {
-                pr.print("   ");
-            }
-            pr.println("|"+sb.toString());
-        }
+        pr.print(hexDump.flush());
         
     }
 

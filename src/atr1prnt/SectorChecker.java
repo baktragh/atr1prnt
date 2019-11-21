@@ -1,5 +1,6 @@
 package atr1prnt;
 
+import hexdump.HexDumpStream;
 import java.io.PrintStream;
 import java.util.Properties;
 
@@ -7,6 +8,7 @@ import java.util.Properties;
 public class SectorChecker implements AtrChecker {
     
     private PrintStream pr;
+    private HexDumpStream hexDump;
     
     @Override
     public void check(AtrFile atrFile, PrintStream pr, Properties props,SummaryReport sumReport) {
@@ -16,6 +18,9 @@ public class SectorChecker implements AtrChecker {
         this.pr=pr;
         
         int numSects = atrFile.getSectors().size();
+        
+        hexDump = new HexDumpStream(16, 2, 4, " ", ":", "|", true, true,0);
+        
         
         for (int k=1;k<=numSects;k++) {
             printSector(atrFile.getSectorData(k),k);
@@ -27,15 +32,12 @@ public class SectorChecker implements AtrChecker {
         
         pr.println();
         pr.println(String.format("Sector #%06d $%06X",number,number));
+        
+        hexDump.reset();
         for(int i=0;i<data.length;i++) {
-            if (i%16==0) {
-                if (i!=0) pr.println();
-                pr.print(String.format("%04X: ",i));
-            }
-            
-            pr.print(String.format("%02X ", data[i]));
+            hexDump.add(data[i]);
         }
-        pr.println();
+        pr.print(hexDump.flush());
     }
 
     @Override

@@ -1,5 +1,7 @@
 package atr1prnt;
 
+import atr1prnt.fs.Dos2Checker;
+import atr1prnt.fs.NoFSChecker;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;

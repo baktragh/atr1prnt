@@ -1,5 +1,8 @@
-package atr1prnt;
+package atr1prnt.fs;
 
+import atr1prnt.AtrChecker;
+import atr1prnt.AtrFile;
+import atr1prnt.SummaryReport;
 import java.io.PrintStream;
 import java.util.Properties;
 
