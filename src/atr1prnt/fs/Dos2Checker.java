@@ -20,6 +20,11 @@ public class Dos2Checker implements AtrChecker {
     private PrintStream pr;
     private AtrFile atrFile;
     private boolean dumpFiles;
+    private final int vtocStyle;
+    private final String messagePrefix;
+    
+    public static final int VTOC_DOS2 = 0;
+    public static final int VTOC_DOSIIP =1;
     
     private static final int NO_NEXT_SECT=-1;
     private static final int NO_DISCONT_SECT=-1;
@@ -46,19 +51,29 @@ public class Dos2Checker implements AtrChecker {
         }
     }
     
+    public Dos2Checker(int vtocStyle) {
+        this.vtocStyle=vtocStyle;
+        if (vtocStyle==VTOC_DOS2) {
+            messagePrefix="DOS2";
+        }
+        else {
+            messagePrefix="DOSIIP";
+        }
+        
+    }
 
     @Override
     public void check(AtrFile atrFile, PrintStream pr, Properties props,SummaryReport sumReport) {
         this.pr = pr;
         this.atrFile = atrFile;
-        dumpFiles = props.containsKey("DOS2-DUMPFILES");
+        dumpFiles = props.containsKey("DUMPFILES");
         this.sumReport=sumReport;
 
         boolean validDensity = checkDensity();
 
         if (!validDensity) {
-            pr.println("DOS2: Error: Unsupported density");
-            sumReport.addItem(new SummaryInfoItem(Severity.SEV_FATAL,"DOS2","Unsupported density"));
+            pr.println(messagePrefix+": Error: Unsupported density");
+            sumReport.addItem(new SummaryInfoItem(Severity.SEV_FATAL,messagePrefix,"Unsupported density"));
             return;
         }
         
@@ -73,7 +88,12 @@ public class Dos2Checker implements AtrChecker {
 
     @Override
     public String getSectionName() {
-        return "DOS 2 COMPATIBLE FILE SYSTEM";
+        if (vtocStyle==VTOC_DOS2) {
+            return "DOS 2 COMPATIBLE FILE SYSTEM";
+        }
+        else {
+            return "DOS II+ FILE SYSTEM";
+        }
     }
 
     private boolean checkDensity() {
@@ -193,34 +213,75 @@ public class Dos2Checker implements AtrChecker {
         int numFreeCounter1 =0;
         int numFreeCounter2 =0;
         
+        int freeSectorCorrection=0;
+        
         /*Check VTOC 1*/
         pr.println();
         pr.println("VTOC 1 Sector (#360):");
         numFreeCounter1=checkVTOC1Header(atrFile.getSectorData(360));
         
-        
-
         pr.println("Bitmap 1:");
-        listBitmapSector(atrFile.getSectorData(360), 0, 720, 10, bitmap1);
-        numFreeBitmap1 = getFreeSectorsFromBitmap(bitmap1,0);
+        switch (vtocStyle) {
+            case VTOC_DOS2: {
+                listBitmapSector(atrFile.getSectorData(360), 0, 720, 10, bitmap1);
+                numFreeBitmap1 = getFreeSectorsFromBitmap(bitmap1,0);
+                freeSectorCorrection=0;
+                break;
+            }
+            case VTOC_DOSIIP: {
+                listBitmapSector(atrFile.getSectorData(360), 0, 936, 10, bitmap1);
+                numFreeBitmap1 = getFreeSectorsFromBitmap(bitmap1,0);
+                freeSectorCorrection=8;
+                break;
+            }
+        }
+        
         pr.println(String.format("Available sectors in bitmap 1: $%06X", numFreeBitmap1));
         
         /*Check VTOC 2*/
         if (atrFile.getSectors().size() > 720) {
+            
             pr.println();
-            pr.println("VTOC 2 Sector (#1024):");
-            numFreeCounter2=checkVTOC2Header(atrFile.getSectorData(1024));
-
+            switch (vtocStyle) {
+                case (VTOC_DOS2): {
+                    pr.println("VTOC 2 Sector (#1024):");
+                    numFreeCounter2 = checkVTOC2Header(atrFile.getSectorData(1024));
+                    break;
+                }
+                case (VTOC_DOSIIP): {
+                    pr.println("VTOC 2 Sector (#359):");
+                    break;
+                }
+            }
+            
             pr.println("Bitmap 2:");
-            listBitmapSector(atrFile.getSectorData(1024), 48, 976, 0, bitmap2);
-            numFreeBitmap2 = getFreeSectorsFromBitmap(bitmap2,720);
+            switch (vtocStyle) {
+                case VTOC_DOS2: {
+                    listBitmapSector(atrFile.getSectorData(1024), 48, 976, 0, bitmap2);
+                    numFreeBitmap2 = getFreeSectorsFromBitmap(bitmap2,720);
+                    break;
+                }
+                case VTOC_DOSIIP: {
+                    listBitmapSector(atrFile.getSectorData(359), 936, 80, 0, bitmap2);
+                    numFreeBitmap2 = getFreeSectorsFromBitmap(bitmap2,936);
+                    break;
+                }
+            }
+            
             pr.println(String.format("Available sectors in bitmap 2: $%06X", numFreeBitmap2));
         }
         
+        /*System.out.println(numFreeBitmap1);
+        System.out.println(numFreeBitmap2);
+        System.out.println(numFreeCounter1);
+        System.out.println(numFreeCounter2);*/
+        
+        
+        
         /*Check consistency of the bitmap*/
-        if (numFreeBitmap1+numFreeBitmap2 != numFreeCounter1+numFreeCounter2) {
+        if (numFreeBitmap1+numFreeBitmap2 != (numFreeCounter1+numFreeCounter2-freeSectorCorrection)) {
             pr.println("Error: Free sector counts in VTOC headers do not match the bits in the bitmap");
-            sumReport.addItem(new SummaryInfoItem(Severity.SEV_ERROR,"DOS2","Inconsistent bitmap"));
+            sumReport.addItem(new SummaryInfoItem(Severity.SEV_ERROR,messagePrefix,"Inconsistent bitmap"));
         }
     }
     
@@ -256,6 +317,8 @@ public class Dos2Checker implements AtrChecker {
         pr.println(String.format("Unused Sectors above sector #719: $%06X", unusedSectorsAbove));
         return unusedSectorsAbove;
     }
+    
+    
     
     private void checkFiles(ArrayList<DirEntry> dirEntries) {
         
@@ -346,7 +409,7 @@ public class Dos2Checker implements AtrChecker {
                 for (DirEntryError der:errorList) {
                     pr.println(String.format("%06X: %s", der.sector,der.errorMessage));
                 }
-                sumReport.addItem(new SummaryInfoItem(Severity.SEV_FATAL,"DOS2",String.format("Directory entry $%02X error",i)));
+                sumReport.addItem(new SummaryInfoItem(Severity.SEV_FATAL,messagePrefix,String.format("Directory entry $%02X error",i)));
             }
             
             if (dumpFiles==true) dumpFile(pr,fileData);

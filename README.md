@@ -52,12 +52,10 @@ The file system integrity check includes the following:
 * NOBOOT - Skip boot information dump
 * SILENT - Silent run with no output
 * SUMMARY - Display summary report (even when SILENT is specified)
+* DUMPFILES - File system check will dump contents of files
 
 ## File System Choice
 
-* FS-DOS2 - DOS 2 compatible (default)
+* FS-DOS2 - Atari DOS 2 fully compatible (default)
+* FS-DOSIIP - DOS II+ 
 * FS-NONE - No file system
-
-## DOS2 Options
-
-* DOS2-DUMPFILES - Dump contents of files

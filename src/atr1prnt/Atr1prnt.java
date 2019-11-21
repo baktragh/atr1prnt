@@ -85,11 +85,14 @@ public class Atr1prnt {
         AtrChecker fsChecker = new NoFSChecker();
         
         /*If no file system specified or DOS2 then run DOS2 checker*/
-        if (fsPropList.isEmpty() || runProperties.contains("FS-DOS2")) {
-            fsChecker= new Dos2Checker();
+        if (fsPropList.isEmpty() || runProperties.containsKey("FS-DOS2")) {
+            fsChecker= new Dos2Checker(Dos2Checker.VTOC_DOS2);
             
         }
-        else if (runProperties.contains("FS-NONE")) {
+        else if (runProperties.containsKey("FS-DOSIIP")) {
+            fsChecker= new Dos2Checker(Dos2Checker.VTOC_DOSIIP);
+        }
+        else if (runProperties.containsKey("FS-NONE")) {
             fsChecker = new NoFSChecker();
         }
         
@@ -126,15 +129,13 @@ public class Atr1prnt {
         System.out.println("NOBOOT    - Skip boot sector dump");
         System.out.println("SILENT    - Silent run with no output");
         System.out.println("SUMMARY   - Display summary report");
-        System.out.println();
+        System.out.println("DUMPFILES - Dump contents of files");
         System.out.println("File system choice: ");
-        System.out.println("FS-DOS2   - DOS 2 filesystem dump (default)");
+        System.out.println("FS-DOS2   - DOS 2 (default)");
+        System.out.println("FS-DOSIIP - DOS II+");
         System.out.println("FS-NONE   - No filesystem dump");
         System.out.println();
-        System.out.println("File system options: ");
-        System.out.println("DOS2-BITMAP - Include dump of DOS2 bitmap");
-        System.out.println("DOS2-DUMPFILES - Include dump of DOS2 bitmap");
-
+    
     }
     
     private static void printSectionStart(PrintStream ps,String sectionTitle) {
