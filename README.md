@@ -28,7 +28,7 @@ be used for individual executions or embedded in scripts.
 ### DOS 2 Compatible file system dump with support for enhanced and double density
 
  * Directory dump
- * VTOC and Bitmap dump
+ * VTOC and Bitmap dump and consistency check
  * File system integrity check
  
 The file system integrity check includes the following:
@@ -53,7 +53,6 @@ The file system integrity check includes the following:
 * SILENT - Silent run with no output
 * SUMMARY - Display summary report (even when SILENT is specified)
 
-
 ## File System Choice
 
 * FS-DOS2 - DOS 2 compatible (default)
@@ -61,5 +60,4 @@ The file system integrity check includes the following:
 
 ## DOS2 Options
 
-* DOS2-BITMAP - Include DOS 2 bitmap dump
 * DOS2-DUMPFILES - Dump contents of files

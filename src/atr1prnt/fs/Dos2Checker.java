@@ -19,7 +19,6 @@ public class Dos2Checker implements AtrChecker {
 
     private PrintStream pr;
     private AtrFile atrFile;
-    private boolean dumpBitmap;
     private boolean dumpFiles;
     
     private static final int NO_NEXT_SECT=-1;
@@ -52,7 +51,6 @@ public class Dos2Checker implements AtrChecker {
     public void check(AtrFile atrFile, PrintStream pr, Properties props,SummaryReport sumReport) {
         this.pr = pr;
         this.atrFile = atrFile;
-        dumpBitmap = props.containsKey("DOS2-BITMAP");
         dumpFiles = props.containsKey("DOS2-DUMPFILES");
         this.sumReport=sumReport;
 
@@ -136,6 +134,7 @@ public class Dos2Checker implements AtrChecker {
             for (int k = 0; k < 8 && sectorCount < numSectors; k++) {
                 boolean b = ((sector[bytePos] & mask) == mask);
                 bitmapDump.add(b ? 1 : 0);
+                bitmap.put(firstSector+sectorCount,b);
                 mask = mask >> 1;
                 sectorCount++;
             }
@@ -187,67 +186,84 @@ public class Dos2Checker implements AtrChecker {
     }
 
     private void checkVTOC(HashMap<Integer,Boolean> bitmap1,HashMap<Integer,Boolean> bitmap2) {
-
+        
+        int numFreeBitmap1 = 0;
+        int numFreeBitmap2 = 0;
+        
+        int numFreeCounter1 =0;
+        int numFreeCounter2 =0;
+        
         /*Check VTOC 1*/
         pr.println();
         pr.println("VTOC 1 Sector (#360):");
-        checkVTOC1Header(atrFile.getSectorData(360));
-        if (dumpBitmap) {
-            pr.println("Bitmap 1:");
-            listBitmapSector(atrFile.getSectorData(360), 0, 720, 10,bitmap1);
-            int numFree = getFreeSectorsFromBitmap(bitmap1);
-            pr.println(String.format("Available sectors in bitmap 1: $%06X",numFree));
-        }
+        numFreeCounter1=checkVTOC1Header(atrFile.getSectorData(360));
+        
+        
 
+        pr.println("Bitmap 1:");
+        listBitmapSector(atrFile.getSectorData(360), 0, 720, 10, bitmap1);
+        numFreeBitmap1 = getFreeSectorsFromBitmap(bitmap1,0);
+        pr.println(String.format("Available sectors in bitmap 1: $%06X", numFreeBitmap1));
+        
+        /*Check VTOC 2*/
         if (atrFile.getSectors().size() > 720) {
             pr.println();
             pr.println("VTOC 2 Sector (#1024):");
-            checkVTOC2Header(atrFile.getSectorData(1024));
-            if (dumpBitmap) {
-                pr.println("Bitmap 2:");
-                listBitmapSector(atrFile.getSectorData(1024), 48, 976, 0,bitmap2);
-                int numFree = getFreeSectorsFromBitmap(bitmap1);
-                pr.println(String.format("Available sectors in bitmap 2: $%06X",numFree));
-            }
+            numFreeCounter2=checkVTOC2Header(atrFile.getSectorData(1024));
+
+            pr.println("Bitmap 2:");
+            listBitmapSector(atrFile.getSectorData(1024), 48, 976, 0, bitmap2);
+            numFreeBitmap2 = getFreeSectorsFromBitmap(bitmap2,720);
+            pr.println(String.format("Available sectors in bitmap 2: $%06X", numFreeBitmap2));
+        }
+        
+        /*Check consistency of the bitmap*/
+        if (numFreeBitmap1+numFreeBitmap2 != numFreeCounter1+numFreeCounter2) {
+            pr.println("Error: Free sector counts in VTOC headers do not match the bits in the bitmap");
+            sumReport.addItem(new SummaryInfoItem(Severity.SEV_ERROR,"DOS2","Inconsistent bitmap"));
         }
     }
     
-    private int getFreeSectorsFromBitmap(HashMap<Integer,Boolean> bitmap) {
+    private int getFreeSectorsFromBitmap(HashMap<Integer,Boolean> bitmap,int firstValid) {
         
         int numFree=0;
         Set<Integer> keys = bitmap.keySet();
         
         Iterator<Integer> it = keys.iterator();
         while(it.hasNext()) {
-            boolean b = bitmap.get(it.next());
-            if (b==true) numFree++;
+            int secNo = it.next();
+            
+            boolean b = bitmap.get(secNo);
+            if (b==true & secNo>=firstValid) numFree++;
         }
         return numFree;
     }
     
 
-    private void checkVTOC1Header(int[] data) {
+    private int checkVTOC1Header(int[] data) {
 
         int dosCode = data[0];
         int totalSectors = data[1] + 256 * data[2];
         int unusedSectors = data[3] + 256 * data[4];
 
         pr.println(String.format("DOS Code: $%02X Total Sectors: $%06X Unused Sectors: $%06X", dosCode, totalSectors, unusedSectors));
+        return unusedSectors;
 
     }
 
-    private void checkVTOC2Header(int[] data) {
+    private int checkVTOC2Header(int[] data) {
         int unusedSectorsAbove = data[122] + 256 * data[123];
         pr.println(String.format("Unused Sectors above sector #719: $%06X", unusedSectorsAbove));
+        return unusedSectorsAbove;
     }
     
     private void checkFiles(ArrayList<DirEntry> dirEntries) {
         
-        String linesp = System.getProperty(("line.separator"));
-        
         pr.println();
         pr.println("Filesystem integrity: ");
         HashMap<Integer,Integer> usedByFS = new HashMap<>();
+        
+        int totalSectors=0;
         
         for(int i=0;i<dirEntries.size();i++) {
            
@@ -295,6 +311,7 @@ public class Dos2Checker implements AtrChecker {
                 
                 currSector=nextSect;
                 sectorCount++;
+                totalSectors++;
             }
             /*Now the whole directory entry is processed*/
             bodySb.append(chainDump.flush());
@@ -335,6 +352,9 @@ public class Dos2Checker implements AtrChecker {
             if (dumpFiles==true) dumpFile(pr,fileData);
             
         }
+        /*All entries are done*/
+        pr.println();
+        pr.println(String.format("Total sectors used by directory entries: $%06X",totalSectors));
         
         
     }
