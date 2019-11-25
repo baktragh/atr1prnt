@@ -71,10 +71,6 @@ public class Atr1prnt {
         printSectionStart(pr, ahc.getSectionName());
         ahc.check(atrFile,pr,runProperties,sr);
         
-        /*Run sector checker*/
-        SectorChecker sc = new SectorChecker();
-        printSectionStart(pr, sc.getSectionName());
-        sc.check(atrFile,pr,runProperties,sr);
         
         /*Run boot checker*/
         BootChecker bc = new BootChecker();
@@ -101,6 +97,11 @@ public class Atr1prnt {
         fsChecker.check(atrFile, pr, runProperties,sr);
         
         
+        /*Run sector checker*/
+        SectorChecker sc = new SectorChecker();
+        printSectionStart(pr, sc.getSectionName());
+        sc.check(atrFile,pr,runProperties,sr);
+        
         /*Print summary if requested. Always to system out*/
         if (runProperties.containsKey("SUMMARY")) {
             printSectionStart(System.out,"SUMMARY REPORT");
@@ -121,7 +122,7 @@ public class Atr1prnt {
 
     private static void printUsage() {
         System.out.println("Usage: java -jar atr1prnt.jar <disk_image> [options]");
-        System.out.println("atr1prnt 0.1 - Print and verify contents of ATR disk images");
+        System.out.println("atr1prnt 0.2 - Print and verify contents of ATR disk images");
         System.out.println("(c) 2019 BAHA Software");
         System.out.println();
         System.out.println("General options: ");

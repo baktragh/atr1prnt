@@ -25,7 +25,7 @@ be used for individual executions or embedded in scripts.
 
 ## FMS Specific Dumps
 
-### DOS 2 Compatible file system dump with support for enhanced and double density
+### Atari DOS 2 and DOS II+ file systems
 
  * Directory dump
  * VTOC and Bitmap dump and consistency check
@@ -56,6 +56,6 @@ The file system integrity check includes the following:
 
 ## File System Choice
 
-* FS-DOS2 - Atari DOS 2 fully compatible (default)
-* FS-DOSIIP - DOS II+ 
+* FS-DOS2 - Atari DOS 2 fully compatible (default). DOS 2.0, DOS 2.5, XDOS.
+* FS-DOSIIP - DOS II+ (by S. Dorndorf)
 * FS-NONE - No file system
