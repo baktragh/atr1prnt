@@ -357,7 +357,7 @@ public class Dos2Checker implements AtrChecker {
             );
 
             /*If empty or unused, just print header and proceed to the next entry*/
-            if (entry.flag == 0 || entry.numSectors == 0) {
+            if (entry.flag == 0 || entry.numSectors == 0 || (entry.flag & 0x80)==0x80) {
                 pr.println(headerSb.toString().trim());
                 continue;
             }
