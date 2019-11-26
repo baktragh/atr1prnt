@@ -8,7 +8,7 @@ be used for individual executions or embedded in scripts.
     java -jar atr1prnt.jar <atr_file> [options]
 
 # Example
-    java -jar atr1prnt.jar TEST.ATR FS-DOS2 NOBOOT FS-DOS2 SUMMARY NOSECTORS
+    java -jar atr1prnt.jar TEST.ATR NOBOOT FS-DOS2 SUMMARY NOSECTORS
 
 # Return codes
 
