@@ -2,7 +2,7 @@
 ATR Disk Image Dumping Tool
 
 ATR1PRNT is a utility that allows you to dump ATR files. The tool can
-be used for individual executions or embedded in scripts.
+be used for individual executions or embedded in scripts. ATR1PRNT is written in the Java programming language and requires Java Runtime Environment or Java Development Kit 8 or newer.
 
 # Usage
     java -jar atr1prnt.jar <atr_file> [options]
