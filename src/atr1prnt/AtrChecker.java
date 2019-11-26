@@ -5,7 +5,7 @@ import java.util.Properties;
 
 public interface AtrChecker {
     
-    public void check(AtrFile atrFile,PrintStream pr,Properties props,SummaryReport sumReport);
+    public void check(AtrFile atrFile,PrintStream pr,Properties props,SummaryReport sumReport,DumpUtilities u);
     public String getSectionName();
     
 }

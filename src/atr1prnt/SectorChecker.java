@@ -11,9 +11,11 @@ public class SectorChecker implements AtrChecker {
     private HexDumpStream hexDump;
     
     @Override
-    public void check(AtrFile atrFile, PrintStream pr, Properties props,SummaryReport sumReport) {
+    public void check(AtrFile atrFile, PrintStream pr, Properties props,SummaryReport sumReport,DumpUtilities utils) {
         
         if (props.containsKey("NOSECTORS")) return;
+        
+        utils.printHeader(pr,"SECTORS", '=', true, true);
         
         this.pr=pr;
         

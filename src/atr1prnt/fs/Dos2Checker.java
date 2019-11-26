@@ -2,6 +2,7 @@ package atr1prnt.fs;
 
 import atr1prnt.AtrChecker;
 import atr1prnt.AtrFile;
+import atr1prnt.DumpUtilities;
 import atr1prnt.Severity;
 import atr1prnt.SummaryInfoItem;
 import atr1prnt.SummaryReport;
@@ -62,7 +63,7 @@ public class Dos2Checker implements AtrChecker {
                 break;
             }
             case (VTOC_DOSIIP): {
-                messagePrefix = "DOSIIP";
+                messagePrefix = "DOSII+";
                 break;
             }
             
@@ -74,12 +75,14 @@ public class Dos2Checker implements AtrChecker {
     }
 
     @Override
-    public void check(AtrFile atrFile, PrintStream pr, Properties props, SummaryReport sumReport) {
+    public void check(AtrFile atrFile, PrintStream pr, Properties props, SummaryReport sumReport,DumpUtilities utils) {
         this.pr = pr;
         this.atrFile = atrFile;
         dumpFiles = props.containsKey("DUMPFILES");
         this.sumReport = sumReport;
 
+        utils.printHeader(pr,getSectionName(), '=', true, true);
+        
         boolean validDensity = checkDensity();
 
         if (!validDensity) {
@@ -409,7 +412,7 @@ public class Dos2Checker implements AtrChecker {
 
             /*Print the entry*/
             pr.println(headerSb.toString());
-            pr.println(bodySb.toString());
+            pr.print(bodySb.toString());
 
             /*Prin errors, if there were any*/
             if (!errorList.isEmpty()) {
@@ -481,7 +484,7 @@ public class Dos2Checker implements AtrChecker {
         if (halt == false) {
 
             if (usedByFS.containsKey(currSector)) {
-                errorList.add(new DirEntryError(currSector, String.format("Sector used by other entry %02X", usedByFS.get(currSector))));
+                errorList.add(new DirEntryError(currSector, String.format("Sector used by other entry $%02X", usedByFS.get(currSector))));
             }
             else {
                 usedByFS.put(currSector, entryNo);

@@ -50,7 +50,11 @@ public class SummaryReport {
         return max;
     }
     
-    public void printSummary(PrintStream ps) {
+    public void printSummary(PrintStream ps,DumpUtilities utils) {
+        
+        ps.println();
+        utils.printHeader(ps, "SUMMARY REPORT", '=', true, true);
+        
         for (SummaryItemCrate ic:summaryItems) {
             ps.println(ic.item.toString()+" ["+ic.count+"]");
         }

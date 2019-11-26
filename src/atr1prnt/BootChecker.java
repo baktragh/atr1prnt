@@ -7,9 +7,10 @@ import java.util.Properties;
 class BootChecker implements AtrChecker {
 
     @Override
-    public void check(AtrFile atrFile, PrintStream pr, Properties props,SummaryReport sumReport) {
+    public void check(AtrFile atrFile, PrintStream pr, Properties props,SummaryReport sumReport,DumpUtilities utils) {
         
         if (props.containsKey("NOBOOT")) return;
+        utils.printHeader(pr,"BOOT SECTOR", '=', true, true);
         
         int[] data = atrFile.getSectorData(1);
         

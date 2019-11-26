@@ -60,6 +60,8 @@ public class Atr1prnt {
         /*Prepare summary report*/
         SummaryReport sr = new SummaryReport();
         PrintStream pr = System.out;
+        DumpUtilities dumpUtils = new DumpUtilities();
+        
         
         if (runProperties.containsKey("SILENT")) {
             pr = new PrintStream(new NullOutputStream());
@@ -68,14 +70,12 @@ public class Atr1prnt {
         
         /*Run header checker*/
         AtrHeaderChecker  ahc = new AtrHeaderChecker();
-        printSectionStart(pr, ahc.getSectionName());
-        ahc.check(atrFile,pr,runProperties,sr);
+        ahc.check(atrFile,pr,runProperties,sr,dumpUtils);
         
         
         /*Run boot checker*/
         BootChecker bc = new BootChecker();
-        printSectionStart(pr,bc.getSectionName());
-        bc.check(atrFile,pr,runProperties,sr);
+        bc.check(atrFile,pr,runProperties,sr,dumpUtils);
         
         /*Decide which file system checker to run*/
         AtrChecker fsChecker = new NoFSChecker();
@@ -93,19 +93,16 @@ public class Atr1prnt {
         }
         
         /*Run the file system check*/
-        printSectionStart(pr,fsChecker.getSectionName());
-        fsChecker.check(atrFile, pr, runProperties,sr);
+        fsChecker.check(atrFile, pr, runProperties,sr,dumpUtils);
         
         
         /*Run sector checker*/
         SectorChecker sc = new SectorChecker();
-        printSectionStart(pr, sc.getSectionName());
-        sc.check(atrFile,pr,runProperties,sr);
+        sc.check(atrFile,pr,runProperties,sr,dumpUtils);
         
         /*Print summary if requested. Always to system out*/
         if (runProperties.containsKey("SUMMARY")) {
-            printSectionStart(System.out,"SUMMARY REPORT");
-            sr.printSummary(System.out);
+            sr.printSummary(System.out,dumpUtils);
         }
         
         /*Return return code*/
@@ -121,9 +118,10 @@ public class Atr1prnt {
     }
 
     private static void printUsage() {
+        System.out.println("atr1prnt 0.3 - Print and verify contents of ATR disk images");
+        System.out.println("by BAHA Software");
+        System.out.println();
         System.out.println("Usage: java -jar atr1prnt.jar <disk_image> [options]");
-        System.out.println("atr1prnt 0.2 - Print and verify contents of ATR disk images");
-        System.out.println("(c) 2019 BAHA Software");
         System.out.println();
         System.out.println("General options: ");
         System.out.println("NOSECTORS - Skip sector dump");
@@ -136,14 +134,8 @@ public class Atr1prnt {
         System.out.println("FS-DOSIIP - DOS II+");
         System.out.println("FS-NONE   - No filesystem dump");
         System.out.println();
-    
     }
     
-    private static void printSectionStart(PrintStream ps,String sectionTitle) {
-        ps.println("========================================================================");
-        ps.println("SECTION: "+sectionTitle);
-        ps.println("========================================================================");
-    }
     
     private static List<String> getPropertiesStartingWith(String start,Properties props) {
         
