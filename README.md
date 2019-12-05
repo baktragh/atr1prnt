@@ -1,7 +1,7 @@
 # ATR1PRNT
 ATR Disk Image Dumping Tool
 
-ATR1PRNT is a utility that allows you to dump ATR files. The tool can
+ATR1PRNT is a utility that allows you to dump ATR disk images. The tool can
 be used for individual executions or embedded in scripts. ATR1PRNT is written in the Java programming language and requires Java Runtime Environment or Java Development Kit 8 or newer.
 
 # Usage
@@ -52,7 +52,8 @@ The file system integrity check includes the following:
 * NOBOOT - Skip boot information dump
 * SILENT - Silent run with no output
 * SUMMARY - Display summary report (even when SILENT is specified)
-* DUMPFILES - File system check will dump contents of files
+* DUMPFILES - File system checks will dump contents of files
+* NOERASED - File system checks will skip erased directory entries
 
 ## File System Choice
 

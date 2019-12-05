@@ -36,8 +36,10 @@ public class Atr1prnt {
             e.printStackTrace(System.err);
         }
         
+        /*If something wrong with ATR file, terminate*/
         if (atrFile==null) {
             System.exit(-1);
+            return;
         }
         
         Properties runProperties = new Properties();
@@ -53,32 +55,13 @@ public class Atr1prnt {
         List<String> fsPropList = getPropertiesStartingWith("FS-", runProperties);
         
         if (fsPropList.size()>1) {
-            System.err.println("ERROR:  More than one filesystem specified");
+            System.err.println("ERROR: More than one filesystem specified");
             System.exit(-1);
+            return;
         }
         
-        /*Prepare summary report*/
-        SummaryReport sr = new SummaryReport();
-        PrintStream pr = System.out;
-        DumpUtilities dumpUtils = new DumpUtilities();
-        
-        
-        if (runProperties.containsKey("SILENT")) {
-            pr = new PrintStream(new NullOutputStream());
-        }
-        
-        
-        /*Run header checker*/
-        AtrHeaderChecker  ahc = new AtrHeaderChecker();
-        ahc.check(atrFile,pr,runProperties,sr,dumpUtils);
-        
-        
-        /*Run boot checker*/
-        BootChecker bc = new BootChecker();
-        bc.check(atrFile,pr,runProperties,sr,dumpUtils);
-        
-        /*Decide which file system checker to run*/
-        AtrChecker fsChecker = new NoFSChecker();
+         /*Decide which file system checker to run*/
+        AtrChecker fsChecker;
         
         /*If no file system specified or DOS2 then run DOS2 checker*/
         if (fsPropList.isEmpty() || runProperties.containsKey("FS-DOS2")) {
@@ -91,12 +74,34 @@ public class Atr1prnt {
         else if (runProperties.containsKey("FS-NONE")) {
             fsChecker = new NoFSChecker();
         }
+        else {
+            System.err.println("Unknown file system was specified: "+fsPropList.get(0));
+            System.exit(-1);
+            return;
+        }
+        
+        /*Prepare summary report*/
+        SummaryReport sr = new SummaryReport();
+        PrintStream pr = System.out;
+        DumpUtilities dumpUtils = new DumpUtilities();
+        
+        /*For silent run, let us have a dummy output stream*/ 
+        if (runProperties.containsKey("SILENT")) {
+            pr = new PrintStream(new NullOutputStream());
+        }
+        
+        /*Run header checker*/
+        AtrHeaderChecker  ahc = new AtrHeaderChecker();
+        ahc.check(atrFile,pr,runProperties,sr,dumpUtils);
+        
+        /*Run boot checker*/
+        BootChecker bc = new BootChecker();
+        bc.check(atrFile,pr,runProperties,sr,dumpUtils);
         
         /*Run the file system check*/
         fsChecker.check(atrFile, pr, runProperties,sr,dumpUtils);
         
-        
-        /*Run sector checker*/
+        /*Run sector checker/dumper*/
         SectorChecker sc = new SectorChecker();
         sc.check(atrFile,pr,runProperties,sr,dumpUtils);
         
@@ -118,17 +123,18 @@ public class Atr1prnt {
     }
 
     private static void printUsage() {
-        System.out.println("atr1prnt 0.3 - Print and verify contents of ATR disk images");
+        System.out.println("atr1prnt 0.4 - Print and verify contents of ATR disk images");
         System.out.println("by BAHA Software");
         System.out.println();
         System.out.println("Usage: java -jar atr1prnt.jar <disk_image> [options]");
         System.out.println();
         System.out.println("General options: ");
-        System.out.println("NOSECTORS - Skip sector dump");
-        System.out.println("NOBOOT    - Skip boot sector dump");
-        System.out.println("SILENT    - Silent run with no output");
-        System.out.println("SUMMARY   - Display summary report");
-        System.out.println("DUMPFILES - Dump contents of files");
+        System.out.println("NOSECTORS      Skip sector dump");
+        System.out.println("NOBOOT         Skip boot sector dump");
+        System.out.println("SILENT         Silent run with no output");
+        System.out.println("SUMMARY        Display summary report");
+        System.out.println("DUMPFILES      Dump contents of files");
+        System.out.println("NOERASED       Skip erased directory entries");
         System.out.println("File system choice: ");
         System.out.println("FS-DOS2   - DOS 2 (default)");
         System.out.println("FS-DOSIIP - DOS II+");
@@ -151,6 +157,9 @@ public class Atr1prnt {
     }
     
     
+    /**
+     * Output stream that does nothing
+     */
     private static class NullOutputStream extends OutputStream {
 
         @Override

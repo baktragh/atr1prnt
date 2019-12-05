@@ -8,6 +8,10 @@ import java.io.PrintStream;
 import java.util.Properties;
 
 
+/**
+ * 
+ * No file system checker
+ */
 public class NoFSChecker implements AtrChecker {
 
     @Override

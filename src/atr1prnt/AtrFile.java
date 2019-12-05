@@ -34,9 +34,9 @@ public class AtrFile {
         RandomAccessFile raf = new RandomAccessFile(f,"r");
         long len = f.length();
         
-        if (len>64*1024*1024) {
+        if (len>256*1024*1024) {
             raf.close();
-            throw new AtrException("File "+pathName+" is larger than 32 MB");
+            throw new AtrException("File "+pathName+" is larger than 256 MB");
         }
         if (len<16) {
             raf.close();

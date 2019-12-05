@@ -16,6 +16,10 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
+/**
+ * Atari DOS II 2.0S and DOS II+ compatible file system checker
+ * 
+ */
 public class Dos2Checker implements AtrChecker {
 
     private PrintStream pr;
@@ -23,6 +27,7 @@ public class Dos2Checker implements AtrChecker {
     private boolean dumpFiles;
     private final int vtocStyle;
     private final String messagePrefix;
+    private boolean skipErasedEntries;
 
     public static final int VTOC_DOS2 = 0;
     public static final int VTOC_DOSIIP = 1;
@@ -40,6 +45,11 @@ public class Dos2Checker implements AtrChecker {
         int startSector;
         int numSectors;
 
+    }
+    
+    private static class SectorCheckResult {
+        int nextInChain=NO_NEXT_SECT;
+        int dataBytes=0;        
     }
 
     private static class DirEntryError {
@@ -80,6 +90,8 @@ public class Dos2Checker implements AtrChecker {
         this.atrFile = atrFile;
         dumpFiles = props.containsKey("DUMPFILES");
         this.sumReport = sumReport;
+        skipErasedEntries = props.containsKey("NOERASED");
+                
 
         utils.printHeader(pr,getSectionName(), '=', true, true);
         
@@ -338,7 +350,8 @@ public class Dos2Checker implements AtrChecker {
         pr.println("Filesystem integrity: ");
         HashMap<Integer, Integer> usedByFS = new HashMap<>();
 
-        int totalSectors = 0;
+        int totalFSSectors = 0;
+        int totalFSBytes=0;
 
         for (int i = 0; i < dirEntries.size(); i++) {
 
@@ -349,6 +362,7 @@ public class Dos2Checker implements AtrChecker {
 
             /*Each entry has three string builders*/
             StringBuilder headerSb = new StringBuilder();
+            StringBuilder bytesSb = new StringBuilder();
             StringBuilder bodySb = new StringBuilder();
 
             /*Begin with empty line*/
@@ -360,13 +374,14 @@ public class Dos2Checker implements AtrChecker {
             );
 
             /*If empty or unused, just print header and proceed to the next entry*/
-            if (entry.flag == 0 || entry.numSectors == 0 || (entry.flag & 0x80)==0x80) {
+            if (entry.flag == 0 || entry.numSectors == 0 || (((entry.flag & 0x80)==0x80 ) && skipErasedEntries)) {
                 pr.println(headerSb.toString().trim());
                 continue;
             }
 
             int sectorCount = 0;
             int currSector = entry.startSector;
+            int fileSizeBytes = 0;
 
             ArrayList<DirEntryError> errorList = new ArrayList<>();
 
@@ -376,7 +391,8 @@ public class Dos2Checker implements AtrChecker {
             while (sectorCount < entry.numSectors) {
 
                 /*Check the sector*/
-                int nextSect = checkSectorInChain(i, currSector, errorList, entrySectorList, usedByEntry, usedByFS, fileData,bitmap.get(currSector));
+                SectorCheckResult scr = checkSectorInChain(i, currSector, errorList, entrySectorList, usedByEntry, usedByFS, fileData,bitmap.get(currSector));
+                int nextSect = scr.nextInChain; 
 
                 chainDump.add(currSector);
 
@@ -387,8 +403,13 @@ public class Dos2Checker implements AtrChecker {
 
                 currSector = nextSect;
                 sectorCount++;
-                totalSectors++;
+                totalFSSectors++;
+                fileSizeBytes+=scr.dataBytes;
+                
             }
+            
+            totalFSBytes+=fileSizeBytes;
+            
             /*Now the whole directory entry is processed*/
             bodySb.append(chainDump.flush());
 
@@ -410,9 +431,14 @@ public class Dos2Checker implements AtrChecker {
                 }
             }
 
+            
+            /*File size in bytes*/
+            bytesSb.append(String.format("File size: #%08d $%06X bytes",fileSizeBytes,fileSizeBytes));
+            
             /*Print the entry*/
             pr.println(headerSb.toString());
             pr.print(bodySb.toString());
+            pr.println(bytesSb.toString());
 
             /*Prin errors, if there were any*/
             if (!errorList.isEmpty()) {
@@ -430,11 +456,12 @@ public class Dos2Checker implements AtrChecker {
         }
         /*All entries are done*/
         pr.println();
-        pr.println(String.format("Total sectors used by directory entries: $%06X", totalSectors));
+        pr.println(String.format("Total sectors used by directory entries: #%08d $%06X", totalFSSectors,totalFSSectors));
+        pr.println(String.format("Total bytes used by directory entries  : #%08d $%06X", totalFSBytes,totalFSBytes));
 
     }
 
-    private int checkSectorInChain(int entryNo, int currSector, ArrayList<DirEntryError> errorList, ArrayList<Integer> entrySectorList, HashSet<Integer> usedByEntry, HashMap<Integer, Integer> usedByFS, ArrayList<Integer> fileData,boolean bitmapFlag) {
+    private SectorCheckResult checkSectorInChain(int entryNo, int currSector, ArrayList<DirEntryError> errorList, ArrayList<Integer> entrySectorList, HashSet<Integer> usedByEntry, HashMap<Integer, Integer> usedByFS, ArrayList<Integer> fileData,boolean bitmapFlag) {
         boolean halt = false;
 
         int ofsDirEntryNum;
@@ -442,12 +469,16 @@ public class Dos2Checker implements AtrChecker {
         int ofsNextSecLo;
         int ofsNumBytes;
         int maxNumBytes;
+        
+        SectorCheckResult scr = new SectorCheckResult();
+        
 
         /*Check if sector exists*/
         if (!existsSector(currSector)) {
             errorList.add(new DirEntryError(currSector, "No such sector"));
             halt = true;
-            return NO_NEXT_SECT;
+            scr.nextInChain=NO_NEXT_SECT;
+            return scr;
         }
         
         /*Check against bitmap*/
@@ -515,6 +546,8 @@ public class Dos2Checker implements AtrChecker {
             }
 
             /*Collect data for file dump*/
+            scr.dataBytes=numBytes;
+            
             if (dumpFiles) {
                 int dumpBytes = numBytes;
                 if (dumpBytes > maxNumBytes) {
@@ -526,7 +559,8 @@ public class Dos2Checker implements AtrChecker {
             }
 
         }
-        return halt == true ? NO_NEXT_SECT : nextSect;
+        scr.nextInChain = ( halt == true ? NO_NEXT_SECT : nextSect);
+        return scr;
     }
 
     private boolean existsSector(int number) {
