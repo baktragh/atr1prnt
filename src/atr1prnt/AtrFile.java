@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.Properties;
 
 
 public class AtrFile {
@@ -19,7 +20,7 @@ public class AtrFile {
     private final long crc;
     private final int flagByte;
     
-    public static AtrFile getFromPathName(String pathName) throws AtrException,IOException {
+    public static AtrFile getFromPathName(String pathName,Properties runProperties) throws AtrException,IOException {
         
         /*Check existence and if it is a regular file*/
         File f = new File(pathName);
@@ -82,6 +83,15 @@ public class AtrFile {
         b1=raf.read();
         crc+=b1*(65536*256);
         
+        
+        
+        
+        /*Boot sector size*/
+        int bootSectorSize=128;
+        if (runProperties.containsKey("BOOT256")) {
+            bootSectorSize=256;
+        }
+        
         /*Skip unused byte*/
         for(int i=0;i<4;i++) {
             raf.read();
@@ -102,7 +112,7 @@ public class AtrFile {
             if (firstByte==-1) break;
             
             /*Set sector length*/
-            int realSectorLength=(sectorNumber<=3?128:sectorSize);
+            int realSectorLength=(sectorNumber<=3?bootSectorSize:sectorSize);
             
             /*Read sector data*/
             int[] sector = new int[realSectorLength];

@@ -5,6 +5,8 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 
 public class SummaryReport {
+
+    private final String fileName;
     
     private static class SummaryItemCrate {
         SummaryInfoItem item;
@@ -18,8 +20,9 @@ public class SummaryReport {
     private final ArrayList<SummaryItemCrate> summaryItems;
     
     
-    public SummaryReport() {
+    public SummaryReport(String fileName) {
         summaryItems = new ArrayList<>();
+        this.fileName=fileName;
     }
     
     public void addItem(SummaryInfoItem it) {
@@ -53,10 +56,17 @@ public class SummaryReport {
     public void printSummary(PrintStream ps,DumpUtilities utils) {
         
         ps.println();
-        utils.printHeader(ps, "SUMMARY REPORT", '=', true, true);
+        String fn = fileName;
+        if (fn.length()>48) fn=fn.substring(0,44)+"...";
+        
+        utils.printHeader(ps, "SUMMARY REPORT "+fn, '=', true, true);
         
         for (SummaryItemCrate ic:summaryItems) {
             ps.println(ic.item.toString()+" ["+ic.count+"]");
+        }
+        
+        if (summaryItems.isEmpty()==true) {
+            ps.println("Nothing to report");
         }
     }
     

@@ -60,3 +60,25 @@ The file system integrity check includes the following:
 * FS-DOS2 - Atari DOS 2 fully compatible (default). DOS 2.0, DOS 2.5, XDOS.
 * FS-DOSIIP - DOS II+ (by S. Dorndorf)
 * FS-NONE - No file system
+
+## Special Options
+
+* BOOT256 - Assume the first three sectors hold 256 bytes instead of 128
+
+# Wildcarding
+
+ATR1PRNT has limited support for wildcarded atr_file specification. The file
+name (but not any of its parent directories) can be wildcarded with * (asterisk) and ? (question mark).
+This way, you can process multiple ATR disk images.
+
+ATR1PRNT expands the wildcards. If you are running ATR1PRNT from a shell that
+expands the wildcarding characters before running the program,
+use appropriate delimiters to prevent the shell from expanding the wildcards.
+
+Note that all disk images processed with wildcarding share the same options.
+Summary reports, if requested, all always present at the very end of the output.
+
+
+## Example
+
+    java -jar atr1prnt.jar "C:\UTILS\A8\DISK\TEST*.ATR" FS-DOS2 SUMMARY NOSECTORS

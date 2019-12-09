@@ -208,8 +208,9 @@ public class Dos2Checker implements AtrChecker {
             StringBuilder sbHexa = new StringBuilder();
             for (int z = 0; z < 11; z++) {
                 char c = (char) sector[pos + z];
-                char nc = (c >= 128) ? (char) (c - 128) : c;
-                if (Character.isLetterOrDigit(c) || c == '-' || c == '.' || c == '_' || c == ' ') {
+                char nc = (c >= 128) ? (char) (c - 128) : (char)c;
+                
+                if (Character.isLetterOrDigit(nc) || nc == '-' || nc == '.' || nc == '_' || nc == ' ') {
                     sbHuman.append(nc);
                 }
                 else {

@@ -2,8 +2,6 @@ package atr1prnt;
 
 import atr1prnt.fs.Dos2Checker;
 import atr1prnt.fs.NoFSChecker;
-import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -15,27 +13,32 @@ public class Atr1Prnt {
 
     private String fullPath;
     private Properties runProperties;
+    
     private PrintStream outStream;
     private PrintStream errStream;
+    private PrintStream summaryStream;
+    private SummaryReport summaryReport;
 
     public static final int RC_OK = 0;
     public static final int RC_ERROR = -1;
+    
 
     private Atr1Prnt() {
 
     }
 
-    private Atr1Prnt(String fullPath, Properties runProperties, PrintStream out, PrintStream err) {
+    private Atr1Prnt(String fullPath, Properties runProperties, PrintStream out, PrintStream err,SummaryReport sr) {
 
         this.fullPath = fullPath;
         this.runProperties = runProperties;
         this.outStream = out;
         this.errStream = err;
+        this.summaryReport = sr;
     }
 
     public int dump() throws Exception {
 
-        AtrFile atrFile = AtrFile.getFromPathName(fullPath);
+        AtrFile atrFile = AtrFile.getFromPathName(fullPath,runProperties);
         
         /*Get properties related to file system selection*/
         List<String> fsPropList = getPropertiesStartingWith("FS-", runProperties);
@@ -60,37 +63,29 @@ public class Atr1Prnt {
         }
 
         /*Prepare summary report*/
-        SummaryReport sr = new SummaryReport();
+        
         PrintStream pr = outStream;
         DumpUtilities dumpUtils = new DumpUtilities();
-
-        /*For silent run, let us have a dummy output stream*/
-        if (runProperties.containsKey("SILENT")) {
-            pr = new PrintStream(new NullOutputStream());
-        }
-
+        
         /*Run header checker*/
         AtrHeaderChecker ahc = new AtrHeaderChecker();
-        ahc.check(atrFile, pr, runProperties, sr, dumpUtils);
+        ahc.check(atrFile, pr, runProperties, summaryReport, dumpUtils);
 
         /*Run boot checker*/
         BootChecker bc = new BootChecker();
-        bc.check(atrFile, pr, runProperties, sr, dumpUtils);
+        bc.check(atrFile, pr, runProperties, summaryReport, dumpUtils);
 
         /*Run the file system check*/
-        fsChecker.check(atrFile, pr, runProperties, sr, dumpUtils);
+        fsChecker.check(atrFile, pr, runProperties, summaryReport, dumpUtils);
 
         /*Run sector checker/dumper*/
         SectorChecker sc = new SectorChecker();
-        sc.check(atrFile, pr, runProperties, sr, dumpUtils);
+        sc.check(atrFile, pr, runProperties, summaryReport, dumpUtils);
 
-        /*Print summary if requested. Always to system out*/
-        if (runProperties.containsKey("SUMMARY")) {
-            sr.printSummary(outStream, dumpUtils);
-        }
+       
 
         /*Return return code*/
-        Severity maxSeverity = sr.getMaxSeverity();
+        Severity maxSeverity = summaryReport.getMaxSeverity();
         int retCode = 0;
 
         if (maxSeverity.isGreaterThan(Severity.SEV_INFO)) {
@@ -101,21 +96,11 @@ public class Atr1Prnt {
 
     }
 
-    public static Atr1Prnt getInstance(String fullPath, Properties runProperties, PrintStream out, PrintStream err) {
-        return new Atr1Prnt(fullPath, runProperties, out, err);
+    public static Atr1Prnt getInstance(String fullPath, Properties runProperties, PrintStream out, PrintStream err,SummaryReport sr) {
+        return new Atr1Prnt(fullPath, runProperties, out, err,sr);
     }
 
-    /**
-     * Output stream that does nothing
-     */
-    private static class NullOutputStream extends OutputStream {
-
-        @Override
-        public void write(int b) throws IOException {
-
-        }
-
-    }
+   
     
     private List<String> getPropertiesStartingWith(String start, Properties props) {
 

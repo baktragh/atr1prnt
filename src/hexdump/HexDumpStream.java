@@ -16,7 +16,6 @@ public class HexDumpStream {
     private final String ln;
     
     private int lineCounter;
-    private int dataCounter;
     
     private final String offsetFormat;
     private final String dataFormat;
@@ -39,8 +38,6 @@ public class HexDumpStream {
         
         ln = System.getProperty("line.separator");
         lineCounter=0;
-        dataCounter=initialOffset;
-        
         
         dataFormat="%0"+dataDigits+"X";
         offsetFormat="%0"+offsetDigits+"X";
@@ -144,7 +141,6 @@ public class HexDumpStream {
         lineCounter=0;
         sb.setLength(0);
         lineCharBuffer.setLength(0);
-        dataCounter=initialOffset;
     }
     
 }
