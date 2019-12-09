@@ -88,8 +88,6 @@ public class Atr1PrntMain {
         File p = f.getParentFile();
         String fn = f.getName();
         
-        System.out.println(fn);
-        
         /*If there is a wildcard in the parent, refuse it*/
         String sParent = p.getPath();
         if (sParent.indexOf('*')!=-1 || sParent.indexOf('?')!=-1) {
