@@ -53,7 +53,7 @@ The file system integrity check includes the following:
 * SILENT - Silent run with no output
 * SUMMARY - Display summary report (even when SILENT is specified)
 * DUMPFILES - File system checks will dump contents of files
-* NOERASED - File system checks will skip erased directory entries
+* ERASED - File system checks will process directory entries flagged as erased
 
 ## File System Choice
 

@@ -96,7 +96,7 @@ public class Atr1PrntMain {
     }
 
     private static void printUsage() {
-        System.out.println("atr1prnt 0.5 - Print and verify contents of ATR disk images");
+        System.out.println("atr1prnt 0.6 - Print and verify contents of ATR disk images");
         System.out.println("by BAHA Software");
         System.out.println();
         System.out.println("Usage: java -jar atr1prnt.jar <disk_image> [options]");
@@ -107,7 +107,7 @@ public class Atr1PrntMain {
         System.out.println("SILENT         Silent run with no output");
         System.out.println("SUMMARY        Display summary report");
         System.out.println("DUMPFILES      Dump contents of files");
-        System.out.println("NOERASED       Skip erased directory entries");
+        System.out.println("ERASED         Process erased directory entries");
         System.out.println("File system choice: ");
         System.out.println("FS-DOS2   - DOS 2 (default)");
         System.out.println("FS-DOSIIP - DOS II+");

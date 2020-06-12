@@ -27,7 +27,7 @@ public class Dos2Checker implements AtrChecker {
     private boolean dumpFiles;
     private final int vtocStyle;
     private final String messagePrefix;
-    private boolean skipErasedEntries;
+    private boolean processErasedEntries;
 
     public static final int VTOC_DOS2 = 0;
     public static final int VTOC_DOSIIP = 1;
@@ -90,7 +90,7 @@ public class Dos2Checker implements AtrChecker {
         this.atrFile = atrFile;
         dumpFiles = props.containsKey("DUMPFILES");
         this.sumReport = sumReport;
-        skipErasedEntries = props.containsKey("NOERASED");
+        processErasedEntries = props.containsKey("ERASED");
                 
 
         utils.printHeader(pr,getSectionName(), '=', true, true);
@@ -165,7 +165,7 @@ public class Dos2Checker implements AtrChecker {
         pr.println("Directory listing:");
 
         for (int k = 361; k <= 368; k++) {
-            listDirSector(atrFile.getSectorData(k), pr, dirEntries);
+            listDirSector(atrFile.getSectorData(k), pr, dirEntries,k);
         }
 
     }
@@ -192,7 +192,7 @@ public class Dos2Checker implements AtrChecker {
 
     }
 
-    private void listDirSector(int[] sector, PrintStream pr, List<DirEntry> dirEntries) {
+    private void listDirSector(int[] sector, PrintStream pr, List<DirEntry> dirEntries,int sectorNumber) {
 
         int pos = 0;
         for (int i = 0; i < 8; i++) {
@@ -232,6 +232,18 @@ public class Dos2Checker implements AtrChecker {
             de.hexName = sbHexa.toString();
             dirEntries.add(de);
         }
+        
+        /*Check for resudial data in double density disk*/
+        if (atrFile.getSectorSize()==256) {
+            for (int i=128;i<256;i++) {
+                if (sector[i]!=0) {
+                    pr.println(String.format("Warning: Nonzero data in bytes 128-255 of a directory sector $%06X #%05d",sectorNumber,sectorNumber));
+                    sumReport.addItem(new SummaryInfoItem(Severity.SEV_WARNING, messagePrefix, "Nonzero data in bytes 128-255 of a directory sector"));
+                    break;
+                }
+            }
+        }
+        
     }
 
     private void checkVTOC(HashMap<Integer, Boolean> bitmap1, HashMap<Integer, Boolean> bitmap2) {
@@ -375,7 +387,7 @@ public class Dos2Checker implements AtrChecker {
             );
 
             /*If empty or unused, just print header and proceed to the next entry*/
-            if (entry.flag == 0 || entry.numSectors == 0 || (((entry.flag & 0x80)==0x80 ) && skipErasedEntries)) {
+            if (entry.flag == 0 || entry.numSectors == 0 || (((entry.flag & 0x80)==0x80 ) && !processErasedEntries)) {
                 pr.println(headerSb.toString().trim());
                 continue;
             }
