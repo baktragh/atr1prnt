@@ -120,8 +120,10 @@ public class Atr1PrntMain {
     private static void globFiles(String fileSpec, ArrayList<String> fileList) {
         
         File f = new File(fileSpec);
-        File p = f.getParentFile();
         String fn = f.getName();
+        
+        File p = f.getParentFile();
+        if (p==null) p = new File(System.getProperty("user.dir"));
         
         /*If there is a wildcard in the parent, refuse it*/
         String sParent = p.getPath();
