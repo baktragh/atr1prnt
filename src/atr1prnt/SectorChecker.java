@@ -13,9 +13,9 @@ public class SectorChecker implements AtrChecker {
     @Override
     public void check(AtrFile atrFile, PrintStream pr, Properties props,SummaryReport sumReport,DumpUtilities utils) {
         
-        if (props.containsKey("NOSECTORS")) return;
+        if (!props.containsKey("SECTORS")) return;
         
-        utils.printHeader(pr,"SECTORS", '=', true, true);
+        utils.printHeader(pr,"SECTOR DUMP", '=', true, true);
         
         this.pr=pr;
         
@@ -44,7 +44,7 @@ public class SectorChecker implements AtrChecker {
 
     @Override
     public String getSectionName() {
-        return "SECTORS";
+        return "SECTOR DUMP";
     }
 
    

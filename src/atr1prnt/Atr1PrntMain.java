@@ -102,18 +102,18 @@ public class Atr1PrntMain {
         System.out.println("Usage: java -jar atr1prnt.jar <disk_image> [options]");
         System.out.println();
         System.out.println("General options: ");
-        System.out.println("NOSECTORS      Skip sector dump");
-        System.out.println("NOBOOT         Skip boot sector dump");
-        System.out.println("SILENT         Silent run with no output");
-        System.out.println("SUMMARY        Display summary report");
-        System.out.println("DUMPFILES      Dump contents of files");
-        System.out.println("ERASED         Process erased directory entries");
+        System.out.println("SECTORS      Perform full sector dump");
+        System.out.println("NOBOOT       Skip boot sector dump");
+        System.out.println("SILENT       Silent run with no output");
+        System.out.println("SUMMARY      Display summary report");
+        System.out.println("DUMPFILES    Dump contents of files");
+        System.out.println("ERASED       Process erased directory entries");
         System.out.println("File system choice: ");
-        System.out.println("FS-DOS2   - DOS 2 (default)");
-        System.out.println("FS-DOSIIP - DOS II+");
-        System.out.println("FS-NONE   - No filesystem dump");
+        System.out.println("FS-DOS2      DOS 2 (default)");
+        System.out.println("FS-DOSIIP    DOS II+");
+        System.out.println("FS-NONE      No filesystem dump");
         System.out.println("Special options: ");
-        System.out.println("BOOT256   - Assume first three sectors have 256 bytes");
+        System.out.println("BOOT256      Assume first three sectors have 256 bytes");
         System.out.println();
     }
 

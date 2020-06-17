@@ -48,7 +48,7 @@ The file system integrity check includes the following:
 
 ## General Options
 
-* NOSECTORS - Skip sector dump
+* SECTORS - Perform full sector dump
 * NOBOOT - Skip boot information dump
 * SILENT - Silent run with no output
 * SUMMARY - Display summary report (even when SILENT is specified)
